@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThinkAI Chatbot</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles to override or extend Tailwind for pixel-perfect match */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Overall background gradient for the 'phone screen' effect */
+            background: linear-gradient(to bottom, #E8F0F5, #F5F7FA);
+            /* Very subtle light blue-gray to off-white gradient */
+            /* Removed centering styles from body */
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            /* Ensure body takes full height */
+            position: relative;
+            /* Needed for fixed positioning of chatbot */
+        }
+
+        .chatbot-container {
+            background-color: #FFFFFF;
+            /* White background for the card */
+            border-radius: 3rem;
+            /* Rounded corners */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+                /* Large shadow */
+                0 10px 10px -5px rgba(0, 0, 0, 0.04),
+                /* Medium shadow */
+                inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+            /* Inner white border/highlight for glass effect */
+            width: 100%;
+            max-width: 24rem;
+            /* Equivalent to max-w-sm in Tailwind (384px) */
+            height: 80vh;
+            /* Responsive height */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* Crucial for sliding effect - hides the off-screen content */
+            position: fixed;
+            /* Changed to fixed positioning */
+            bottom: 2rem;
+            /* Position from bottom */
+            right: 2rem;
+            /* Position from right */
+            z-index: 99;
+            /* Ensure it's above other content but below toggle button */
+            transition: all 0.5s ease-in-out;
+            /* Smooth transition for size changes */
+            transform-origin: bottom right;
+            /* Set transform origin for scaling */
+        }
+
+        .chatbot-container.expanded {
+            /* New class for expanded state */
+            max-width: 48rem;
+            /* Wider for article view */
+            height: 800px;
+            /* Taller for article view */
+            border-radius: 1.5rem;
+            /* Slightly less rounded when expanded */
+        }
+
+        .chatbot-container.hidden {
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+            /* Disable interactions when hidden */
+        }
+
+        .chatbot-container.visible {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+            /* Enable interactions when visible */
+            position: absolute;
+            bottom: 100px;
+        }
+
+        @media (min-width: 768px) {
+
+            /* md breakpoint */
+            .chatbot-container {
+                height: 700px;
+            }
+        }
+
+        /* Wrapper for screens to enable sliding animation */
+        .screens-wrapper {
+            display: flex;
+            /* Arranges screens side-by-side */
+            width: 300%;
+            /* Changed to 300% for three screens */
+            height: 100%;
+            transition: transform 0.5s ease-in-out;
+            /* Smooth transition for sliding */
+        }
+
+        /* Base styles for all screen types within the wrapper */
+        .initial-screen,
+        .new-chat-screen,
+        .article-view-screen {
+            width: 33.33%;
+            /* Each screen takes 1/3 of the wrapper's width */
+            flex-shrink: 0;
+            /* Prevent shrinking */
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            /* Ensure they fill the height */
+        }
+
+        /* Class to slide to the new chat screen (second screen) */
+        .screens-wrapper.slide-left {
+            transform: translateX(-33.33%);
+            /* Moves the wrapper left by one screen */
+        }
+
+        /* Class to slide to the article view screen (third screen) */
+        .screens-wrapper.slide-far-left {
+            transform: translateX(-66.66%);
+            /* Moves the wrapper left by two screens */
+        }
+
+
+        /* Chat Area (initial screen) */
+        .chat-area {
+            flex: 1;
+            /* Allows chat area to take available space */
+            overflow-y: auto;
+            /* Enables vertical scrolling for chat messages, welcome, and sections */
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            /* space-y-4 */
+            /* Orange gradient: darker to lighter, then white from 60% */
+            background: linear-gradient(to bottom, #FFB347 20%, #FFD180 34%, #FFFFFF 90%, #FFFFFF 100%);
+
+            /* Hide scrollbar for Webkit browsers */
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        /* Hide scrollbar for Webkit browsers */
+        .chat-area::-webkit-scrollbar {
+            display: none;
+        }
+
+        .welcome-circle {
+            width: 6rem;
+            /* w-24 */
+            height: 6rem;
+            /* h-24 */
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 9999px;
+            /* rounded-full */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Background image from URL */
+            background-image: url('https://media.istockphoto.com/id/1037753724/vector/abstract-blurred-background-in-red-orange-and-yellow-tone.jpg?s=612x612&w=0&k=20&c=RMEOITkrjphGQ4c1gYQ-ik4HgqbEhuX7YEOGbWXAT9w=');
+            background-size: cover;
+            /* Cover the entire circle */
+            background-position: center;
+            /* Center the image */
+            background-repeat: no-repeat;
+            /* Do not repeat the image */
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            /* rounded-xl */
+            /* Updated: Background color to match buttons */
+            background-color: #333333;
+            color: #FFFFFF;
+            /* White text for all messages */
+        }
+
+        .user-message {
+            border-bottom-right-radius: 0;
+            /* rounded-br-none */
+            align-self: flex-end;
+            /* For flexbox alignment */
+        }
+
+        .ai-message {
+            border-bottom-left-radius: 0;
+            /* rounded-bl-none */
+            align-self: flex-start;
+            /* For flexbox alignment */
+        }
+
+        /* Styles for the chat history buttons */
+        .chat-history-section {
+            margin-top: 1rem;
+            padding: 0 0.5rem;
+            /* Adjust padding to match image */
+        }
+
+        .chat-history-header {
+            display: flex;
+            justify-content: flex-start;
+            /* Align to start since "See All" is removed */
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chat-history-title {
+            font-size: 1.25rem;
+            /* text-xl */
+            font-weight: 600;
+            /* font-semibold */
+            color: #333333;
+        }
+
+        .chat-history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            /* Responsive grid */
+            gap: 0.75rem;
+            /* space-x-3 and space-y-3 */
+        }
+
+        .chat-history-button {
+            background-color: #333333;
+            /* Dark background */
+            border-radius: 9999px;
+            /* rounded-full */
+            padding: 0.5rem 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            /* space-x-2 */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            /* subtle shadow */
+            transition: background-color 0.15s ease-in-out;
+            cursor: pointer;
+            white-space: nowrap;
+            /* Prevent text wrapping */
+            overflow: hidden;
+            /* Hide overflow text */
+            text-overflow: ellipsis;
+            /* Add ellipsis for overflow */
+        }
+
+        .chat-history-button:hover {
+            background-color: #4F4F4F;
+            /* Slightly lighter on hover */
+        }
+
+        .chat-history-icon-circle {
+            width: 2rem;
+            /* w-8 */
+            height: 2rem;
+            /* h-8 */
+            background-color: #4F4F4F;
+            /* Darker gray for circle */
+            border-radius: 9999px;
+            /* rounded-full */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            /* Prevent shrinking */
+        }
+
+        .chat-history-icon {
+            width: 1rem;
+            /* w-4 */
+            height: 1rem;
+            /* h-4 */
+            fill: none;
+            stroke: #FFFFFF;
+            /* White icon */
+            stroke-width: 2;
+        }
+
+        .chat-history-text {
+            color: #FFFFFF;
+            /* White text */
+            font-size: 0.875rem;
+            /* text-sm */
+            font-weight: 500;
+            /* font-medium */
+        }
+
+        /* New Chat Button (reverted to single button, matching action buttons) */
+        .new-chat-button {
+            background-color: #333333;
+            /* Dark background matching action buttons */
+            border-radius: 9999px;
+            /* rounded-full */
+            padding: 0.5rem 1rem;
+            /* py-3 px-6 */
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            /* Space out text and icon */
+            gap: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            /* shadow-md */
+            transition: background-color 0.15s ease-in-out;
+            cursor: pointer;
+            width: calc(100% - 2rem);
+            /* Full width minus padding */
+            margin: 1rem auto 0 auto;
+            /* Center with margin, no bottom margin */
+            position: sticky;
+            /* Make it sticky */
+            bottom: 1rem;
+            /* Distance from the bottom */
+            z-index: 10;
+            /* Ensure it's above other content */
+            flex-shrink: 0;
+            /* Prevent shrinking when content overflows */
+        }
+
+        .new-chat-button:hover {
+            background-color: #4F4F4F;
+            /* Darker on hover */
+        }
+
+        .new-chat-text {
+            color: #FFFFFF;
+            /* White text */
+            font-size: 1rem;
+            /* text-base */
+            font-weight: 600;
+            /* font-semibold */
+        }
+
+        .new-chat-icon-circle {
+            width: 2.5rem;
+            /* w-10 */
+            height: 2.5rem;
+            /* h-10 */
+            background-color: #4F4F4F;
+            /* Dark background matching action button circles */
+            border-radius: 9999px;
+            /* rounded-full */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            /* Prevent shrinking */
+        }
+
+        .new-chat-arrow-icon {
+            width: 1.25rem;
+            /* w-5 */
+            height: 1.25rem;
+            /* h-5 */
+            fill: none;
+            stroke: #FFFFFF;
+            /* White arrow */
+            stroke-width: 2;
+        }
+
+        /* Search for Help Section Styles */
+        .search-section {}
+
+        /* New styles for search input wrapper to match button style */
+        .search-input-wrapper {
+            background-color: #FFFFFF;
+            /* Reverted to light gray as requested */
+            border-radius: 9999px;
+            /* rounded-full */
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            /* space-x-2 */
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            /* subtle shadow */
+            border: 1px solid #E0E2E7;
+            /* Add a subtle border to match the original image's input field style */
+        }
+
+        .search-input-wrapper input {
+            flex: 1;
+            background-color: transparent;
+            outline: none;
+            color: #333333;
+            /* Dark text on white background */
+            font-size: 0.875rem;
+            /* text-sm */
+            padding-left: 0.5rem;
+            /* Add some padding for text */
+        }
+
+        .search-input-wrapper input::placeholder {
+            color: #6B7280;
+            /* gray-500 */
+        }
+
+        .search-icon {
+            width: 1.25rem;
+            /* w-5 */
+            height: 1.25rem;
+            /* h-5 */
+            color: #6B7280;
+            /* gray-500 */
+            /* Icon color for white background */
+            flex-shrink: 0;
+        }
+
+        .article-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            /* space-y-2 */
+            /* Removed max-height and overflow-y: auto; */
+            padding-right: 0;
+            /* Removed padding for scrollbar */
+        }
+
+        .article-item {
+            display: flex;
+            justify-content: space-between;
+            /* Space out content and arrow */
+            align-items: center;
+            padding: 0.75rem 0.75rem;
+            /* Adjusted padding to match button style */
+            background-color: transparent;
+            /* Keep transparent as per color request */
+            border-radius: 9999px;
+            /* Rounded full as per button style */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.20);
+            /* Subtle shadow as per button style */
+            transition: background-color 0.15s ease-in-out;
+            cursor: pointer;
+            white-space: nowrap;
+            /* Prevent text wrapping */
+            overflow: hidden;
+            /* Hide overflow text */
+            text-overflow: ellipsis;
+            /* Add ellipsis for overflow */
+            border-bottom: none;
+            /* Remove individual item border */
+        }
+
+        .article-item:hover {
+            background-color: #F8F9FA;
+            /* Very light gray on hover */
+        }
+
+        .article-item:last-child {
+            border-bottom: none;
+            /* Ensure no border for the last item */
+        }
+
+        .article-icon-circle {
+            /* New style for article item icon circle - removed from article item */
+            display: none;
+            /* Hide the icon circle for article items */
+        }
+
+        .article-text {
+            color: #333333;
+            /* Reverted to dark text */
+            font-size: 0.875rem;
+            /* text-sm */
+            font-weight: 500;
+        }
+
+        .article-arrow-icon {
+            width: 1rem;
+            /* w-4 */
+            height: 1rem;
+            /* h-4 */
+            fill: none;
+            stroke: #6B7280;
+            /* Reverted to gray icon */
+            stroke-width: 2;
+            margin-left: auto;
+            /* Push to the right */
+            flex-shrink: 0;
+        }
+
+        /* --- New Chat Screen Styles --- */
+        /* This header is now part of the new-chat-messages-container */
+        .chat-top-bar {
+            /* Now transparent to sync with widget background */
+            background: #FFB347;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            /* Aligned to start */
+            gap: 1rem;
+            /* Gap between back button and profile info */
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            /* Ensure it's above chat messages */
+            /* border-radius: 3rem 3rem 0 0; Match top radius of container */
+            padding-bottom: 0.5rem;
+            /* Reduce padding to make it less bulky */
+        }
+
+        .chat-top-bar .back-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            /* Prevent shrinking */
+        }
+
+        .chat-top-bar .back-button svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: #333;
+        }
+
+        .chat-profile-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-grow: 1;
+            /* Allow profile info to take available space */
+        }
+
+        .chat-profile-image {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 9999px;
+            background-image: url('https://placehold.co/100x100/FFB347/FFFFFF?text=AI');
+            /* Placeholder image for AI profile */
+            background-size: cover;
+            background-position: center;
+            flex-shrink: 0;
+        }
+
+        .chat-profile-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-profile-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .new-chat-messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 1rem 1rem 1rem;
+            /* Adjusted padding-top to account for sticky header */
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            /* Apply the same gradient as the initial chat-area */
+            background: linear-gradient(to bottom, #FFB347 20%, #FFD180 34%, #FFFFFF 90%, #FFFFFF 100%);
+            /* Hide scrollbar for Webkit browsers */
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        .new-chat-messages-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Redesigned chat input area to match "Chat now" button style */
+        .chat-input-area {
+            display: flex;
+            /* flex-direction: column; */
+            /* Changed to column for multiple inputs */
+            align-items: flex-end;
+            /* Align items to the bottom for textarea */
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background-color: #333333;
+            /* Dark background like the "Chat now" button */
+            border-radius: 9999px;
+            /* Rounded full */
+            margin: 1rem;
+            /* Add margin to match the "Chat now" button's spacing */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            /* Shadow */
+            position: sticky;
+            bottom: 1rem;
+            /* Align with the "Chat now" button's sticky position */
+            z-index: 20;
+        }
+
+        .chat-input-area .input-group {
+            display: flex;
+            width: 100%;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        /* Styling for both textarea and input fields to ensure consistency */
+        .chat-input-area textarea,
+        .chat-input-area input[type="text"],
+        .chat-input-area input[type="email"] {
+            flex: 1;
+            background-color: transparent;
+            /* Transparent background */
+            border: none;
+            /* No border */
+            outline: none;
+            color: #FFFFFF;
+            /* White text */
+            font-size: 0.875rem;
+            padding: 0.5rem 0.5rem;
+            /* Adjusted padding */
+            resize: none;
+            /* Disable manual resize */
+            min-height: 2.5rem;
+            /* Match button height for single line */
+            line-height: 1.5rem;
+            /* Adjust line height for better appearance */
+            border-radius: 9999px;
+            /* Always rounded-full */
+            max-height: 50px !important;
+            /* Limit max height */
+            overflow-y: auto;
+            /* Allow scroll if needed */
+            scrollbar-width: none;
+            /* Hide scrollbar for Firefox */
+        }
+
+        .chat-input-area textarea::-webkit-scrollbar,
+        .chat-input-area input::-webkit-scrollbar {
+            display: none;
+            /* Hide scrollbar for Webkit */
+        }
+
+        .chat-input-area button {
+            background-color: #333333;
+            /* Dark background */
+            color: #FFFFFF;
+            border-radius: 9999px;
+            /* Rounded full */
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+            box-shadow: none;
+            /* Remove extra shadow */
+            flex-shrink: 0;
+            /* Prevent shrinking */
+        }
+
+        .chat-input-area button:hover {
+            background-color: #4F4F4F;
+            /* Darker on hover */
+        }
+
+        .chat-input-area button svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: none;
+            stroke: #FFFFFF;
+            /* White icon */
+            stroke-width: 2;
+        }
+
+        /* Specific styles for order tracking input group */
+        .order-tracking-input-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 0.5rem;
+        }
+
+        .order-tracking-input-group .input-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .order-tracking-input-group input {
+            flex: 1;
+            /* Allow inputs to grow */
+            background-color: #4F4F4F;
+            /* Slightly lighter background for inputs */
+            padding: 0.75rem 1rem;
+            border-radius: 9999px;
+            color: #FFFFFF;
+            font-size: 0.875rem;
+            outline: none;
+            border: none;
+        }
+
+        .order-tracking-input-group input::placeholder {
+            color: #B0B0B0;
+            /* Lighter placeholder text */
+        }
+
+        /* Close button specific styles */
+        .close-button {
+            background-color: #4F4F4F;
+            /* Darker gray for close button */
+            color: #FFFFFF;
+            border-radius: 9999px;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+            box-shadow: none;
+            flex-shrink: 0;
+        }
+
+        .close-button:hover {
+            background-color: #6B7280;
+            /* Even darker on hover */
+        }
+
+        .close-button svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: none;
+            stroke: #FFFFFF;
+            stroke-width: 2;
+        }
+
+
+        /* Loader animation */
+        .loader-dots {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 1rem;
+            /* Adjust height to fit message bubble */
+            margin-top: 0.25rem;
+        }
+
+        .loader-dots span {
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #6B7280;
+            border-radius: 50%;
+            margin: 0 0.125rem;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loader-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loader-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .predefined-options {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .predefined-options button {
+            background: #dadada;
+            color: #333;
+            border-radius: 9999px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            font-weight: 500;
+            font-size: 0.95rem;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .predefined-options button:hover {
+            background: #F8F9FA;
+        }
+
+        /* Article View Screen Styles */
+        .article-view-screen {
+            background-color: #FFFFFF;
+            /* White background for article content */
+            padding: 1.5rem;
+            /* Increased padding for better readability */
+            overflow-y: auto;
+            color: #333333;
+            display: flex;
+            /* Use flex to control content flow */
+            flex-direction: column;
+            /* Stack header and content vertically */
+            height: 100%;
+            /* Ensure it fills its parent height */
+        }
+
+        .article-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #E0E2E7;
+            flex-shrink: 0;
+            /* Prevent header from shrinking */
+        }
+
+        .article-header .back-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .article-header .back-button svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: #333;
+        }
+
+        .article-header .expand-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .article-header .expand-button svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: #333;
+        }
+
+        .article-content {
+            flex-grow: 1;
+            /* Allow content to take remaining space */
+            overflow-y: auto;
+            /* Enable scrolling for article content */
+            padding-right: 0.5rem;
+            /* Add some padding for scrollbar */
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        .article-content::-webkit-scrollbar {
+            display: none;
+            /* Hide scrollbar for Webkit browsers */
+        }
+
+        .article-content h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .article-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #6B7280;
+            margin-bottom: 1rem;
+        }
+
+        .article-meta img {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 9999px;
+        }
+
+        .article-content p {
+            margin-bottom: 1rem;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .article-content ol,
+        .article-content ul {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+
+        .article-content ol li,
+        .article-content ul li {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .article-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .article-content h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #333;
+        }
+
+        /* Chat Toggle Button */
+        .chat-toggle-button {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: #333333;
+            color: #FFFFFF;
+            border-radius: 9999px;
+            width: 3.5rem;
+            height: 3.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 100;
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        .chat-toggle-button:hover {
+            background-color: #4F4F4F;
+        }
+
+        .chat-toggle-button svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            fill: none;
+            stroke: #FFFFFF;
+            stroke-width: 2;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chatbot-container" id="chatbot-container">
+        <!-- Wrapper for screens to enable sliding animation -->
+        <div class="screens-wrapper" id="screens-wrapper">
+            <!-- Initial Chat Area -->
+            <div class="chat-area initial-screen" id="initial-chat-area">
+                <!-- Welcome Message -->
+                <div class="text-center mt-4">
+                    <div class="welcome-circle">
+                        <!-- The image from the URL is now the background -->
+                    </div>
+                    <h2 class="text-2xl font-bold mt-4 text-[#333]">Good evening, Meetanshi</h2>
+                    <p class="text-gray-600 mt-2 text-base">Can I help you with anything?</p>
+                </div>
+
+                <!-- New Chat History Section -->
+                <div class="chat-history-section">
+                    <div class="chat-history-header">
+                        <span class="chat-history-title">Actions</span>
+                    </div>
+                    <div class="chat-history-grid" id="chat-history-grid">
+                        <button class="chat-history-button" data-prompt="Order Tracking">
+                            <div class="chat-history-icon-circle">
+                                <svg class="chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M17 18a2 2 0 002-2V7.5L14.5 3H6a2 2 0 00-2 2v13a2 2 0 002 2h11z"></path>
+                                    <polyline points="14 3 14 8 19 8"></polyline>
+                                    <path d="M10 12L7 9 4 12"></path>
+                                    <path d="M7 9v11"></path>
+                                </svg>
+                            </div>
+                            <span class="chat-history-text">Order Tracking</span>
+                        </button>
+                        <button class="chat-history-button" data-prompt="Whatsapp">
+                            <div class="chat-history-icon-circle">
+                                <svg class="chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path
+                                        d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.5 8.5 0 017.6 4.7 8.38 8.38 0 01.9 3.8z">
+                                    </path>
+                                </svg>
+                            </div>
+                            <span class="chat-history-text">Whatsapp</span>
+                        </button>
+                        <button class="chat-history-button" data-prompt="Email">
+                            <div class="chat-history-icon-circle">
+                                <svg class="chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path
+                                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z">
+                                    </path>
+                                    <polyline points="22,6 12,13 2,6"></polyline>
+                                </svg>
+                            </div>
+                            <span class="chat-history-text">Email</span>
+                        </button>
+                        <button class="chat-history-button" data-prompt="Support">
+                            <div class="chat-history-icon-circle">
+                                <svg class="chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z">
+                                    </path>
+                                    <line x1="12" y1="12" x2="12" y2="16"></line>
+                                    <line x1="12" y1="8" x2="12" y2="8"></line>
+                                </svg>
+                            </div>
+                            <span class="chat-history-text">Support</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages will be appended here by JavaScript -->
+
+                <!-- Search for Help Section (moved inside chat-area) -->
+                <div class="search-section">
+                    <div class="chat-history-header">
+                        <span class="chat-history-title">Articles</span>
+                    </div>
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" placeholder="Search for help" id="search-input">
+                    </div>
+                    <div class="article-list" id="article-list">
+                        <div class="article-item">
+                            <span class="article-text">How long will it take to receive my order?</span>
+                            <svg class="article-arrow-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </div>
+                        <div class="article-item">
+                            <span class="article-text">How to track my order?</span>
+                            <svg class="article-arrow-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </div>
+                        <div class="article-item">
+                            <span class="article-text">Do you ship internationally?</span>
+                            <svg class="article-arrow-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </div>
+                        <div class="article-item">
+                            <span class="article-text">I never got my order, what to do?</span>
+                            <svg class="article-arrow-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </div>
+                        <div class="article-item">
+                            <span class="article-text">What is your return policy?</span>
+                            <svg class="article-arrow-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </div>
+                        <div class="article-item">
+                            <span class="article-text">Can I exchange an item?</span>
+                            <svg class="article-arrow-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Chat Screen (initially off-screen) -->
+            <div class="chat-screen new-chat-screen" id="new-chat-screen">
+                <!-- Top bar with back button, profile image, and name - now part of the main container -->
+                <!-- Moved chat-top-bar directly into new-chat-screen and made its background transparent -->
+                <div class="new-chat-messages-container" id="new-chat-messages-container">
+                    <!-- Chat messages will appear here -->
+                </div>
+
+                <div class="chat-input-area" id="chat-input-area">
+                    <!-- Initial state: textarea -->
+                    <textarea placeholder="Type your message..." id="new-chat-input" rows="1"></textarea>
+                    <button id="send-new-message">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Article View Screen (initially off-screen) -->
+            <div class="article-view-screen" id="article-view-screen">
+                <!-- Article content will be loaded here -->
+            </div>
+        </div>
+
+
+        <!-- New Chat Button (sticky at the bottom of chatbot-container) -->
+        <button class="new-chat-button" id="new-chat-button">
+            <span class="new-chat-text">Chat now</span>
+            <div class="new-chat-icon-circle">
+                <svg class="new-chat-arrow-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+            </div>
+        </button>
+    </div>
+
+    <!-- Chat Toggle Button -->
+    <button id="chat-toggle-button" class="chat-toggle-button">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+        </svg>
+    </button>
+
+    <script>
+        const chatbotContainer = document.getElementById('chatbot-container'); // Get the main container
+        const initialChatArea = document.getElementById('initial-chat-area');
+        const newChatScreen = document.getElementById('new-chat-screen');
+        const newChatButton = document.getElementById('new-chat-button');
+        const newChatMessagesContainer = document.getElementById('new-chat-messages-container');
+        const chatInputArea = document.getElementById('chat-input-area'); // Get the chat input area container
+        const articleViewScreen = document.getElementById('article-view-screen'); // New article view screen
+
+        const chatHistoryGrid = document.getElementById('chat-history-grid');
+        const searchInput = document.getElementById('search-input');
+        const articleList = document.getElementById('article-list');
+        const chatHistorySection = document.querySelector('.chat-history-section');
+        const searchSection = document.querySelector('.search-section');
+        const screensWrapper = document.getElementById('screens-wrapper');
+        const chatToggleButton = document.getElementById('chat-toggle-button');
+
+        let isOrderTrackingMode = false; // New state variable
+
+        // Dynamic Action Buttons Data (still using this for the logic, but rendering static HTML)
+        const actionButtons = [
+            {
+                prompt: "Order Tracking",
+                iconSvg: `<svg class="chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a2 2 0 002-2V7.5L14.5 3H6a2 2 0 00-2 2v13a2 2 0 002 2h11z"></path><polyline points="14 3 14 8 19 8"></polyline><path d="M10 12L7 9 4 12"></path><path d="M7 9v11"></path></svg>`
+            },
+            {
+                prompt: "Whatsapp",
+                iconSvg: `<svg class="chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.5 8.5 0 017.6 4.7 8.38 8.38 0 01.9 3.8z"></path></svg>`
+            },
+            {
+                prompt: "Email",
+                iconSvg: `<svg class="chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>`
+            },
+            {
+                prompt: "Support",
+                iconSvg: `<svg class="chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"></path><line x1="12" y1="12" x2="12" y2="16"></line><line x1="12" y1="8" x2="12" y2="8"></line></svg>`
+            }
+        ];
+
+        // Dynamic Article Data (still using this for the logic, but rendering static HTML)
+        const articles = [
+            {
+                title: "How long will it take to receive my order?",
+                author: "Jesse",
+                updated: "over a year ago",
+                content: `
+                    <p>Thank you for your order! Delivery times vary based on your location and the shipping method selected during checkout. Generally, orders are processed within <strong>1-2 business days</strong>.</p>
+                    <h2>Domestic Shipping (within your country)</h2>
+                    <ul>
+                        <li><strong>Standard Shipping:</strong> 5-7 business days</li>
+                        <li><strong>Express Shipping:</strong> 2-3 business days</li>
+                    </ul>
+                    <h2>International Shipping</h2>
+                    <p>International orders typically take <strong>7-21 business days</strong> depending on customs clearance in the destination country. Please note that customs duties and taxes may apply upon arrival.</p>
+                    <p>You will receive a shipping confirmation email with a tracking number once your order has been dispatched.</p>
+                    <img src="https://placehold.co/300x200/FFB347/FFFFFF?text=Delivery+Info" alt="Delivery Information">
+                    <p>If you have any further questions, please don't hesitate to contact our support team.</p>
+                `
+            },
+            {
+                title: "How to track my order?",
+                author: "Jesse",
+                updated: "6 months ago",
+                content: `
+                    <p>Tracking your order is easy! Once your order has shipped, you will receive an email with your tracking number and a link to the carrier's website.</p>
+                    <h2>Steps to Track Your Order:</h2>
+                    <ol>
+                        <li>Check your email for a shipping confirmation from us.</li>
+                        <li>Locate the tracking number in the email.</li>
+                        <li>Click on the provided tracking link, or visit the carrier's website and enter your tracking number manually.</li>
+                    </ol>
+                    <p>If you haven't received a tracking number within 2 business days of your purchase, please contact our customer support for assistance.</p>
+                    <img src="https://placehold.co/300x200/FFD180/333333?text=Order+Tracking" alt="Order Tracking Steps">
+                `
+            },
+            {
+                title: "Do you ship internationally?",
+                author: "Jesse",
+                updated: "2 months ago",
+                content: `
+                    <p>Yes, we proudly offer international shipping to most countries worldwide!</p>
+                    <p>Please note that international shipping times and costs vary depending on the destination. Any customs duties, taxes, or import fees are the responsibility of the recipient and are not included in the item price or shipping cost.</p>
+                    <p>During checkout, you will be able to see the available shipping options and estimated costs for your country.</p>
+                `
+            },
+            {
+                title: "I never got my order, what to do?",
+                author: "Jesse",
+                updated: "1 month ago",
+                content: `
+                    <p>We're sorry to hear your order hasn't arrived! Please take the following steps:</p>
+                    <ol>
+                        <li><strong>Check your tracking information:</strong> Ensure there are no delivery exceptions or delays noted.</li>
+                        <li><strong>Verify your shipping address:</strong> Double-check that the address provided was correct.</li>
+                        <li><strong>Look around your delivery location:</b> Sometimes packages are left in a secure location, with a neighbor, or at a local post office.</li>
+                        <li><strong>Wait a few more days:</strong> Occasionally, packages can be marked as delivered prematurely.</li>
+                    </ol>
+                    <p>If your order still hasn't arrived after these steps, please contact our support team with your order number, and we'll be happy to investigate further.</p>
+                `
+            },
+            {
+                title: "What is your return policy?",
+                author: "Jesse",
+                updated: "3 weeks ago",
+                content: `
+                    <p>We want you to be completely satisfied with your purchase! Our return policy allows for returns within <strong>30 days of delivery</strong> for most items.</p>
+                    <p>Items must be unused, in their original packaging, and in the same condition that you received them. Some exclusions may apply (e.g., final sale items, personalized products).</p>
+                    <h2>How to initiate a return:</h2>
+                    <ol>
+                        <li>Contact our customer support team to request a Return Merchandise Authorization (RMA) number.</li>
+                        <li>Package your item securely with the RMA number clearly marked.</li>
+                        <li>Ship the item back to us using a trackable shipping method.</li>
+                    </ol>
+                    <p>Once your return is received and inspected, we will process your refund or exchange. Please allow 5-10 business days for the refund to appear on your statement.</p>
+                `
+            },
+            {
+                title: "Can I exchange an item?",
+                author: "Jesse",
+                updated: "2 weeks ago",
+                content: `
+                    <p>Yes, we offer exchanges for items of equal value within <strong>30 days of delivery</strong>, subject to availability.</p>
+                    <p>To be eligible for an exchange, your item must be unused, in its original packaging, and in the same condition that you received it.</p>
+                    <h2>How to exchange an item:</h2>
+                    <ol>
+                        <li>Contact our customer support team to check availability of the desired item and receive exchange instructions.</li>
+                        <li>Ship your original item back to us.</li>
+                        <li>Once received and inspected, we will ship out your new item.</li>
+                    </ol>
+                    <p>If there's a price difference, we will guide you through the process of either paying the difference or receiving a partial refund.</p>
+                `
+            }
+        ];
+
+
+        // Function to add a message to the chat area (original and new chat)
+        function addMessage(text, sender, targetContainer) {
+            const messageContainer = document.createElement('div');
+            if (targetContainer === newChatMessagesContainer) {
+                messageContainer.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} items-start gap-2`;
+
+                if (sender === 'ai') {
+                    const profileImageDiv = document.createElement('div');
+                    profileImageDiv.className = 'chat-profile-image w-6 h-6 flex-shrink-0';
+                    profileImageDiv.style.backgroundImage = "url('https://placehold.co/100x100/FFB347/FFFFFF?text=AI')";
+                    messageContainer.appendChild(profileImageDiv);
+                }
+
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `message-bubble ${sender === 'user' ? 'user-message' : 'ai-message'}`;
+
+                if (text === 'thinking_loader') {
+                    messageBubble.innerHTML = `
+                        <div class="loader-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    `;
+                } else {
+                    messageBubble.innerHTML = `<p>${text}</p>`;
+                }
+
+                messageContainer.appendChild(messageBubble);
+
+                if (sender === 'user') {
+                    const profileImageDiv = document.createElement('div');
+                    profileImageDiv.className = 'chat-profile-image w-6 h-6 flex-shrink-0';
+                    profileImageDiv.style.backgroundImage = "url('https://placehold.co/100x100/4A90E2/FFFFFF?text=Me')";
+                    messageContainer.appendChild(profileImageDiv);
+                }
+
+            } else {
+                messageContainer.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `message-bubble ${sender === 'user' ? 'user-message' : 'ai-message'}`;
+
+                if (text === 'thinking_loader') {
+                    messageBubble.innerHTML = `
+                        <div class="loader-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    `;
+                } else {
+                    messageBubble.innerHTML = `<p>${text}</p>`;
+                }
+                messageContainer.appendChild(messageBubble);
+            }
+
+            targetContainer.appendChild(messageContainer);
+            targetContainer.scrollTop = targetContainer.scrollHeight;
+        }
+
+        // Handle sending message from initial screen
+        function handleSendMessage(messageText) {
+            if (messageText.trim() === '') return;
+
+            addMessage(messageText, 'user', initialChatArea);
+            chatHistorySection.style.display = 'none';
+            searchSection.style.display = 'none';
+            newChatButton.style.display = 'none';
+
+            addMessage('thinking_loader', 'ai', initialChatArea);
+            setTimeout(() => {
+                const thinkingBubble = initialChatArea.lastChild;
+                if (thinkingBubble && thinkingBubble.querySelector('.loader-dots')) {
+                    thinkingBubble.remove();
+                }
+                addMessage('This is a simulated AI response based on your input.', 'ai', initialChatArea);
+            }, 1000);
+        }
+
+        // Event handler for chat history buttons (initial screen)
+        function handleChatHistoryButtonClick(e) {
+            const promptText = e.currentTarget.dataset.prompt;
+            if (promptText === 'Email') {
+                const email = 'support@example.com';
+                const subject = encodeURIComponent('Support Request from Meetanshi');
+                const body = encodeURIComponent('Hello, I need help with...');
+                window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+                return;
+            } else if (promptText === 'Whatsapp') {
+                const phone = '919999999999';
+                const message = encodeURIComponent('Hello, I need help with my order.');
+                window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+                return;
+            } else if (promptText === 'Order Tracking') {
+                showNewChatScreen();
+                // Simulate typing "Order Tracking" and then immediately switch input
+                setTimeout(() => {
+                    addMessage('Order Tracking', 'user', newChatMessagesContainer);
+                    switchToOrderTrackingInput();
+                }, 100); // Small delay for message to appear
+                return;
+            }
+            handleSendMessage(promptText);
+        }
+
+        // Event handler for article items (initial screen)
+        function handleArticleItemClick(e) {
+            const articleText = e.currentTarget.querySelector('.article-text').textContent;
+            // Only show article view screen if an article item is clicked
+            showArticleViewScreen(articleText);
+        }
+
+        // Function to show the article view screen
+        function showArticleViewScreen(articleTitle) {
+            chatbotContainer.classList.add('expanded'); // Expand the main container
+            screensWrapper.classList.remove('slide-left'); // Ensure it's not sliding to new chat
+            screensWrapper.classList.add('slide-far-left'); // Slide to the article view screen
+            newChatButton.style.display = 'none'; // Hide the "Chat now" button
+
+            // Find the article data by title
+            const articleData = articles.find(article => article.title === articleTitle);
+            if (!articleData) {
+                articleViewScreen.innerHTML = `<p class="text-red-500">Article not found.</p>`;
+                return;
+            }
+
+            articleViewScreen.innerHTML = `
+                <div class="article-header">
+                    <button class="back-button" id="back-to-initial-screen">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <button class="expand-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <polyline points="9 21 3 21 3 15"></polyline>
+                            <line x1="21" y1="3" x2="14" y2="10"></line>
+                            <line x1="3" y1="21" x2="10" y2="14"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="article-content">
+                    <h1>${articleData.title}</h1>
+                    <div class="article-meta">
+                        <img src="https://placehold.co/100x100/6B7280/FFFFFF?text=J" alt="Author">
+                        <span>Written by ${articleData.author}</span>
+                        <span>Updated ${articleData.updated}</span>
+                    </div>
+                    ${articleData.content}
+                </div>
+            `;
+            document.getElementById('back-to-initial-screen').addEventListener('click', resetChatAreaContent);
+        }
+
+        // Event handler for search input (initial screen)
+        function handleSearchInput(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            // Since articles are now static, we need to query them directly from the DOM
+            document.querySelectorAll('#article-list .article-item').forEach(item => {
+                const text = item.querySelector('.article-text').textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Function to reset chat area content to initial state (home screen)
+        function resetChatAreaContent() {
+            chatbotContainer.classList.remove('expanded'); // Revert main container size
+            screensWrapper.classList.remove('slide-left', 'slide-far-left'); // Remove all slide classes
+            newChatButton.style.display = 'flex';
+            isOrderTrackingMode = false; // Reset order tracking mode
+
+            // Revert chat input area to normal textarea
+            switchToNormalChatInput();
+
+            // The initial chat area content is now static HTML, so no need to re-render it.
+            // Just ensure event listeners are attached.
+            attachEventListeners(); // Re-attach all listeners for the initial screen
+        }
+
+        // Function to show the new chat screen and hide the initial one
+        function showNewChatScreen() {
+            chatbotContainer.classList.remove('expanded'); // Ensure container is not expanded for chat screen
+            screensWrapper.classList.remove('slide-far-left'); // Ensure it's not sliding to article view
+            screensWrapper.classList.add('slide-left');
+            newChatButton.style.display = 'none';
+            newChatMessagesContainer.innerHTML = ''; // Clear previous messages in the new chat
+            isOrderTrackingMode = false; // Ensure order tracking mode is off initially for new chat
+
+            // Remove any existing header in newChatMessagesContainer
+            const existingHeader = newChatMessagesContainer.querySelector('.chat-top-bar');
+            if (existingHeader) existingHeader.remove();
+
+            // Add the header inside the scrollable container
+            newChatMessagesContainer.insertAdjacentHTML('afterbegin', getChatHeaderHTML());
+
+            // Only add predefined options if not already present
+            let predefinedDiv = newChatScreen.querySelector('.predefined-options');
+            if (!predefinedDiv) {
+                const predefinedOptions = [
+                    { icon: "🛒", text: "Track my order" },
+                    { icon: "🚚", text: "How long does delivery take?" },
+                    { icon: "🔁", text: "Return policy" }
+                ];
+
+                predefinedDiv = document.createElement('div');
+                predefinedDiv.className = 'predefined-options flex gap-2 mb-3 px-4';
+
+                predefinedOptions.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'flex items-center gap-2 bg-white text-[#333] font-medium rounded-full shadow px-4 py-2 text-sm hover:bg-[#F8F9FA] transition';
+                    btn.innerHTML = `<span>${opt.icon}</span> <span>${opt.text}</span>`;
+                    btn.onclick = () => {
+                        const currentInput = document.getElementById('new-chat-input');
+                        if (currentInput) {
+                            currentInput.value = opt.text;
+                            currentInput.focus();
+                            autoResizeTextarea.call(currentInput);
+                        }
+                    };
+                    predefinedDiv.appendChild(btn);
+                });
+
+                // Insert above the chat input area
+                newChatScreen.insertBefore(predefinedDiv, chatInputArea);
+            }
+
+
+            // Attach event listener for the back button
+            document.getElementById('back-to-home').addEventListener('click', resetChatAreaContent);
+
+            addMessage('Hello! How can I help you today?', 'ai', newChatMessagesContainer);
+            // Ensure the input area is in its normal state when a new chat starts
+            switchToNormalChatInput();
+        }
+
+        function getChatHeaderHTML() {
+            return `
+                <div class="chat-top-bar">
+                    <button class="back-button" id="back-to-home">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <div class="chat-profile-info">
+                        <div class="chat-profile-image"></div>
+                        <div class="chat-profile-details">
+                            <span class="chat-profile-name">ThinkAI Support</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Function to switch to order tracking input fields
+        function switchToOrderTrackingInput() {
+            isOrderTrackingMode = true;
+            chatInputArea.innerHTML = `
+                <div class="order-tracking-input-group">
+                    <div class="input-row">
+                        <input type="text" id="order-number-input" placeholder="Order number" class="flex-1 bg-[#4F4F4F] p-3 rounded-full text-white text-sm outline-none border-none">
+                    </div>
+                    <div class="input-row">
+                        <input type="email" id="email-input" placeholder="Email address" class="flex-1 bg-[#4F4F4F] p-3 rounded-full text-white text-sm outline-none border-none">
+                        <button id="close-order-tracking" class="close-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                        <button id="send-new-message">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+            // Re-attach all event listeners after changing innerHTML
+            attachEventListeners();
+            addMessage('Please provide your order number and email address to track your order.', 'ai', newChatMessagesContainer);
+        }
+
+        // Function to switch back to normal chat textarea
+        function switchToNormalChatInput() {
+            isOrderTrackingMode = false;
+            chatInputArea.innerHTML = `
+                <textarea placeholder="Type your message..." id="new-chat-input" rows="1" class="flex-1 bg-transparent border-none outline-none text-white text-sm py-2 px-2 resize-none min-h-10 leading-6 rounded-full max-h-50 overflow-y-auto scrollbar-width-none"></textarea>
+                <button id="send-new-message">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            `;
+            // Re-attach all event listeners after changing innerHTML
+            attachEventListeners();
+        }
+
+
+        // Handle sending message in the new chat screen
+        function handleSendNewMessage() {
+            // Remove predefined options if present
+            const predefinedDiv = newChatScreen.querySelector('.predefined-options');
+            if (predefinedDiv) {
+                predefinedDiv.remove();
+            }
+
+            if (isOrderTrackingMode) {
+                const orderNumberInput = document.getElementById('order-number-input');
+                const emailInput = document.getElementById('email-input');
+
+                const orderNumber = orderNumberInput ? orderNumberInput.value.trim() : '';
+                const email = emailInput ? emailInput.value.trim() : '';
+
+                if (orderNumber === '' || email === '') {
+                    addMessage('Please provide both order number and email address.', 'ai', newChatMessagesContainer);
+                    return;
+                }
+
+                const userMessage = `Order Tracking Request: Order No. ${orderNumber}, Email: ${email}`;
+                addMessage(userMessage, 'user', newChatMessagesContainer);
+
+                // Clear inputs and switch back to normal chat input
+                switchToNormalChatInput();
+
+                addMessage('thinking_loader', 'ai', newChatMessagesContainer);
+                setTimeout(() => {
+                    const thinkingBubble = newChatMessagesContainer.lastChild;
+                    if (thinkingBubble && thinkingBubble.querySelector('.loader-dots')) {
+                        thinkingBubble.remove();
+                    }
+                    addMessage(`Thank you! I'm now looking up order ${orderNumber} associated with ${email}. Please wait a moment.`, 'ai', newChatMessagesContainer);
+                }, 1500);
+
+            } else {
+                const newChatInput = document.getElementById('new-chat-input'); // Get current textarea
+                const messageText = newChatInput.value.trim();
+                if (messageText === '') return;
+
+                addMessage(messageText, 'user', newChatMessagesContainer);
+                newChatInput.value = ''; // Clear input
+                newChatInput.style.height = 'auto'; // Reset textarea height after sending
+                newChatInput.style.borderRadius = '9999px'; // Reset border-radius to rounded-full
+
+                // Check if the message is "order tracking" (case-insensitive)
+                if (messageText.toLowerCase().includes('order tracking')) {
+                    switchToOrderTrackingInput();
+                    return; // Do not send a generic AI response immediately
+                }
+
+                addMessage('thinking_loader', 'ai', newChatMessagesContainer);
+                setTimeout(() => {
+                    const thinkingBubble = newChatMessagesContainer.lastChild;
+                    if (thinkingBubble && thinkingBubble.querySelector('.loader-dots')) {
+                        thinkingBubble.remove();
+                    }
+                    addMessage('I received your message! How else can I assist you?', 'ai', newChatMessagesContainer);
+                }, 1500);
+            }
+        }
+
+        // Function to auto-resize textarea
+        function autoResizeTextarea() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 70) + 'px';
+        }
+
+        // Attach all event listeners
+        function attachEventListeners() {
+            // Attach listeners for initial chat area buttons (these are static once loaded)
+            document.querySelectorAll('#chat-history-grid .chat-history-button').forEach(button => {
+                button.removeEventListener('click', handleChatHistoryButtonClick); // Remove existing to prevent duplicates
+                button.addEventListener('click', handleChatHistoryButtonClick);
+            });
+
+            document.querySelectorAll('#article-list .article-item').forEach(item => {
+                item.removeEventListener('click', handleArticleItemClick); // Remove existing to prevent duplicates
+                item.addEventListener('click', handleArticleItemClick);
+            });
+
+            const currentSearchInput = document.getElementById('search-input');
+            if (currentSearchInput) {
+                currentSearchInput.removeEventListener('input', handleSearchInput); // Remove existing to prevent duplicates
+                currentSearchInput.addEventListener('input', handleSearchInput);
+            }
+
+            // Attach listener for the main "Chat now" button
+            newChatButton.removeEventListener('click', showNewChatScreen); // Remove existing to prevent duplicates
+            newChatButton.addEventListener('click', showNewChatScreen);
+
+            // The back button listener is now attached dynamically in showNewChatScreen
+            // and should be handled there or ensure it's re-attached
+            const existingBackToHomeButton = document.getElementById('back-to-home');
+            if (existingBackToHomeButton) {
+                existingBackToHomeButton.removeEventListener('click', resetChatAreaContent); // Remove existing to prevent duplicates
+                existingBackToHomeButton.addEventListener('click', resetChatAreaContent);
+            }
+
+
+            // Attach listeners for elements within the dynamic chatInputArea
+            const sendNewMessageButton = document.getElementById('send-new-message');
+            if (sendNewMessageButton) {
+                sendNewMessageButton.removeEventListener('click', handleSendNewMessage); // Remove existing to prevent duplicates
+                sendNewMessageButton.addEventListener('click', handleSendNewMessage);
+            }
+
+            const newChatInput = document.getElementById('new-chat-input');
+            if (newChatInput) {
+                newChatInput.removeEventListener('input', autoResizeTextarea); // Remove existing to prevent duplicates
+                newChatInput.addEventListener('input', autoResizeTextarea);
+
+                newChatInput.removeEventListener('keypress', (e) => { // Remove existing to prevent duplicates
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendNewMessage();
+                    }
+                });
+                newChatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendNewMessage();
+                    }
+                });
+            }
+
+            const closeOrderTrackingButton = document.getElementById('close-order-tracking');
+            if (closeOrderTrackingButton) {
+                closeOrderTrackingButton.removeEventListener('click', switchToNormalChatInput); // Remove existing to prevent duplicates
+                closeOrderTrackingButton.addEventListener('click', switchToNormalChatInput);
+            }
+        }
+
+        // Chat Widget Toggle functionality
+        chatToggleButton.addEventListener('click', () => {
+            if (chatbotContainer.classList.contains('hidden')) {
+                chatbotContainer.classList.remove('hidden');
+                chatbotContainer.classList.add('visible');
+                resetChatAreaContent(); // Ensure it resets to initial view when opened
+            } else {
+                chatbotContainer.classList.remove('visible');
+                chatbotContainer.classList.add('hidden');
+            }
+        });
+
+        // Initial attachment of event listeners when the page loads
+        attachEventListeners();
+
+        // Initially hide the chatbot container
+        chatbotContainer.classList.add('hidden');
+    </script>
+</body>
+
+</html>

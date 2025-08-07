@@ -16,7 +16,7 @@ import { unauthenticated } from "../shopify.server";
  * Remix loader function for handling GET requests
  */
 export async function loader({ request }) {
-  // Handle OPTIONS requests (CORS preflight)
+  // Handle OPTIONS requests (CORS preflight) 
   if (request.method === "OPTIONS") {
     return new Response(null, {
       status: 204,

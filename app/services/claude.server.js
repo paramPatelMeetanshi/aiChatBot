@@ -60,7 +60,7 @@ export function createClaudeService(apiKey = process.env.CLAUDE_API_KEY) {
     // Wait for final message
     const finalMessage = await stream.finalMessage();
 
-    // Process tool use requests
+    // Process tool use requests 
     if (streamHandlers.onToolUse && finalMessage.content) {
       for (const content of finalMessage.content) {
         if (content.type === "tool_use") {

@@ -1,932 +1,540 @@
-/**
- * Shop AI Chat - Client-side implementation
- *
- * This module handles the chat interface for the Shopify AI Chat application.
- * It manages the UI interactions, API communication, and message rendering.
- */
-(function() {
-  'use strict';
+const chatbotContainer = document.getElementById('mitAi-chatbot-container');
+const initialChatArea = document.getElementById('mitAi-initial-chat-area');
+const newChatScreen = document.getElementById('mitAi-new-chat-screen');
+const newChatButton = document.getElementById('mitAi-new-chat-button');
+const newChatMessagesContainer = document.getElementById('mitAi-new-chat-messages-container');
+const chatInputArea = document.getElementById('mitAi-chat-input-area');
+const articleViewScreen = document.getElementById('mitAi-article-view-screen');
+const chatHistoryGrid = document.getElementById('mitAi-chat-history-grid');
+const searchInput = document.getElementById('mitAi-search-input');
+const articleList = document.getElementById('mitAi-article-list');
+const chatHistorySection = document.querySelector('.mitAi-chat-history-section');
+const searchSection = document.querySelector('.mitAi-search-section');
+const screensWrapper = document.getElementById('mitAi-screens-wrapper');
+const chatToggleButton = document.getElementById('mitAi-chat-toggle-button');
 
-  /**
-   * Application namespace to prevent global scope pollution
-   */
-  const ShopAIChat = {
-    /**
-     * UI-related elements and functionality
-     */
-    UI: {
-      elements: {},
-      isMobile: false,
+let isOrderTrackingMode = false;
 
-      /**
-       * Initialize UI elements and event listeners
-       * @param {HTMLElement} container - The main container element
-       */
-      init: function(container) {
-        if (!container) return;
-
-        // Cache DOM elements
-        this.elements = {
-          container: container,
-          chatBubble: container.querySelector('.shop-ai-chat-bubble'),
-          chatWindow: container.querySelector('.shop-ai-chat-window'),
-          closeButton: container.querySelector('.shop-ai-chat-close'),
-          chatInput: container.querySelector('.shop-ai-chat-input input'),
-          sendButton: container.querySelector('.shop-ai-chat-send'),
-          messagesContainer: container.querySelector('.shop-ai-chat-messages')
-        };
-
-        // Detect mobile device
-        this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-        // Set up event listeners
-        this.setupEventListeners();
-
-        // Fix for iOS Safari viewport height issues
-        if (this.isMobile) {
-          this.setupMobileViewport();
-        }
-      },
-
-      /**
-       * Set up all event listeners for UI interactions
-       */
-      setupEventListeners: function() {
-        const { chatBubble, closeButton, chatInput, sendButton, messagesContainer } = this.elements;
-
-        // Toggle chat window visibility
-        chatBubble.addEventListener('click', () => this.toggleChatWindow());
-
-        // Close chat window
-        closeButton.addEventListener('click', () => this.closeChatWindow());
-
-        // Send message when pressing Enter in input
-        chatInput.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter' && chatInput.value.trim() !== '') {
-            ShopAIChat.Message.send(chatInput, messagesContainer);
-
-            // On mobile, handle keyboard
-            if (this.isMobile) {
-              chatInput.blur();
-              setTimeout(() => chatInput.focus(), 300);
-            }
-          }
-        });
-
-        // Send message when clicking send button
-        sendButton.addEventListener('click', () => {
-          if (chatInput.value.trim() !== '') {
-            ShopAIChat.Message.send(chatInput, messagesContainer);
-
-            // On mobile, focus input after sending
-            if (this.isMobile) {
-              setTimeout(() => chatInput.focus(), 300);
-            }
-          }
-        });
-
-        // Handle window resize to adjust scrolling
-        window.addEventListener('resize', () => this.scrollToBottom());
-
-        // Add global click handler for auth links
-        document.addEventListener('click', function(event) {
-          if (event.target && event.target.classList.contains('shop-auth-trigger')) {
-            event.preventDefault();
-            if (window.shopAuthUrl) {
-              ShopAIChat.Auth.openAuthPopup(window.shopAuthUrl);
-            }
-          }
-        });
-      },
-
-      /**
-       * Setup mobile-specific viewport adjustments
-       */
-      setupMobileViewport: function() {
-        const setViewportHeight = () => {
-          document.documentElement.style.setProperty('--viewport-height', `${window.innerHeight}px`);
-        };
-        window.addEventListener('resize', setViewportHeight);
-        setViewportHeight();
-      },
-
-      /**
-       * Toggle chat window visibility
-       */
-      toggleChatWindow: function() {
-        const { chatWindow, chatInput } = this.elements;
-
-        chatWindow.classList.toggle('active');
-
-        if (chatWindow.classList.contains('active')) {
-          // On mobile, prevent body scrolling and delay focus
-          if (this.isMobile) {
-            document.body.classList.add('shop-ai-chat-open');
-            setTimeout(() => chatInput.focus(), 500);
-          } else {
-            chatInput.focus();
-          }
-          // Always scroll messages to bottom when opening
-          this.scrollToBottom();
-        } else {
-          // Remove body class when closing
-          document.body.classList.remove('shop-ai-chat-open');
-        }
-      },
-
-      /**
-       * Close chat window
-       */
-      closeChatWindow: function() {
-        const { chatWindow, chatInput } = this.elements;
-
-        chatWindow.classList.remove('active');
-
-        // On mobile, blur input to hide keyboard and enable body scrolling
-        if (this.isMobile) {
-          chatInput.blur();
-          document.body.classList.remove('shop-ai-chat-open');
-        }
-      },
-
-      /**
-       * Scroll messages container to bottom
-       */
-      scrollToBottom: function() {
-        const { messagesContainer } = this.elements;
-        setTimeout(() => {
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }, 100);
-      },
-
-      /**
-       * Show typing indicator in the chat
-       */
-      showTypingIndicator: function() {
-        const { messagesContainer } = this.elements;
-
-        const typingIndicator = document.createElement('div');
-        typingIndicator.classList.add('shop-ai-typing-indicator');
-        typingIndicator.innerHTML = '<span></span><span></span><span></span>';
-        messagesContainer.appendChild(typingIndicator);
-        this.scrollToBottom();
-      },
-
-      /**
-       * Remove typing indicator from the chat
-       */
-      removeTypingIndicator: function() {
-        const { messagesContainer } = this.elements;
-
-        const typingIndicator = messagesContainer.querySelector('.shop-ai-typing-indicator');
-        if (typingIndicator) {
-          typingIndicator.remove();
-        }
-      },
-
-      /**
-       * Display product results in the chat
-       * @param {Array} products - Array of product data objects
-       */
-      displayProductResults: function(products) {
-        const { messagesContainer } = this.elements;
-
-        // Create a wrapper for the product section
-        const productSection = document.createElement('div');
-        productSection.classList.add('shop-ai-product-section');
-        messagesContainer.appendChild(productSection);
-
-        // Add a header for the product results
-        const header = document.createElement('div');
-        header.classList.add('shop-ai-product-header');
-        header.innerHTML = '<h4>Top Matching Products</h4>';
-        productSection.appendChild(header);
-
-        // Create the product grid container
-        const productsContainer = document.createElement('div');
-        productsContainer.classList.add('shop-ai-product-grid');
-        productSection.appendChild(productsContainer);
-
-        if (!products || !Array.isArray(products) || products.length === 0) {
-          const noProductsMessage = document.createElement('p');
-          noProductsMessage.textContent = "No products found";
-          noProductsMessage.style.padding = "10px";
-          productsContainer.appendChild(noProductsMessage);
-        } else {
-          products.forEach(product => {
-            const productCard = ShopAIChat.Product.createCard(product);
-            productsContainer.appendChild(productCard);
-          });
-        }
-
-        this.scrollToBottom();
-      }
+const actionButtons = [
+    {
+        prompt: "Order Tracking",
+        iconSvg: `<svg class="mitAi-chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a2 2 0 002-2V7.5L14.5 3H6a2 2 0 00-2 2v13a2 2 0 002 2h11z"></path><polyline points="14 3 14 8 19 8"></polyline><path d="M10 12L7 9 4 12"></path><path d="M7 9v11"></path></svg>`
     },
-
-    /**
-     * Message handling and display functionality
-     */
-    Message: {
-      /**
-       * Send a message to the API
-       * @param {HTMLInputElement} chatInput - The input element
-       * @param {HTMLElement} messagesContainer - The messages container
-       */
-      send: async function(chatInput, messagesContainer) {
-        const userMessage = chatInput.value.trim();
-        const conversationId = sessionStorage.getItem('shopAiConversationId');
-
-        // Add user message to chat
-        this.add(userMessage, 'user', messagesContainer);
-
-        // Clear input
-        chatInput.value = '';
-
-        // Show typing indicator
-        ShopAIChat.UI.showTypingIndicator();
-
-        try {
-          ShopAIChat.API.streamResponse(userMessage, conversationId, messagesContainer);
-        } catch (error) {
-          console.error('Error communicating with Claude API:', error);
-          ShopAIChat.UI.removeTypingIndicator();
-          this.add("Sorry, I couldn't process your request at the moment. Please try again later.", 'assistant', messagesContainer);
-        }
-      },
-
-      /**
-       * Add a message to the chat
-       * @param {string} text - Message content
-       * @param {string} sender - Message sender ('user' or 'assistant')
-       * @param {HTMLElement} messagesContainer - The messages container
-       * @returns {HTMLElement} The created message element
-       */
-      add: function(text, sender, messagesContainer) {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('shop-ai-message', sender);
-
-        if (sender === 'assistant') {
-          messageElement.dataset.rawText = text;
-          ShopAIChat.Formatting.formatMessageContent(messageElement);
-        } else {
-          messageElement.textContent = text;
-        }
-
-        messagesContainer.appendChild(messageElement);
-        ShopAIChat.UI.scrollToBottom();
-
-        return messageElement;
-      },
-
-      /**
-       * Add a tool use message to the chat with expandable arguments
-       * @param {string} toolMessage - Tool use message content
-       * @param {HTMLElement} messagesContainer - The messages container
-       */
-      addToolUse: function(toolMessage, messagesContainer) {
-        // Parse the tool message to extract tool name and arguments
-        const match = toolMessage.match(/Calling tool: (\w+) with arguments: (.+)/);
-        if (!match) {
-          // Fallback for unexpected format
-          const toolUseElement = document.createElement('div');
-          toolUseElement.classList.add('shop-ai-message', 'tool-use');
-          toolUseElement.textContent = toolMessage;
-          messagesContainer.appendChild(toolUseElement);
-          ShopAIChat.UI.scrollToBottom();
-          return;
-        }
-
-        const toolName = match[1];
-        const argsString = match[2];
-
-        // Create the main tool use element
-        const toolUseElement = document.createElement('div');
-        toolUseElement.classList.add('shop-ai-message', 'tool-use');
-
-        // Create the header (always visible)
-        const headerElement = document.createElement('div');
-        headerElement.classList.add('shop-ai-tool-header');
-
-        const toolText = document.createElement('span');
-        toolText.classList.add('shop-ai-tool-text');
-        toolText.textContent = `Calling tool: ${toolName}`;
-
-        const toggleElement = document.createElement('span');
-        toggleElement.classList.add('shop-ai-tool-toggle');
-        toggleElement.textContent = '[+]';
-
-        headerElement.appendChild(toolText);
-        headerElement.appendChild(toggleElement);
-
-        // Create the arguments section (initially hidden)
-        const argsElement = document.createElement('div');
-        argsElement.classList.add('shop-ai-tool-args');
-
-        try {
-          // Try to format JSON arguments nicely
-          const parsedArgs = JSON.parse(argsString);
-          argsElement.textContent = JSON.stringify(parsedArgs, null, 2);
-        } catch (e) {
-          // If not valid JSON, just show as-is
-          argsElement.textContent = argsString;
-        }
-
-        // Add click handler to toggle arguments visibility
-        headerElement.addEventListener('click', function() {
-          const isExpanded = argsElement.classList.contains('expanded');
-          if (isExpanded) {
-            argsElement.classList.remove('expanded');
-            toggleElement.textContent = '[+]';
-          } else {
-            argsElement.classList.add('expanded');
-            toggleElement.textContent = '[-]';
-          }
-        });
-
-        // Assemble the complete element
-        toolUseElement.appendChild(headerElement);
-        toolUseElement.appendChild(argsElement);
-
-        messagesContainer.appendChild(toolUseElement);
-        ShopAIChat.UI.scrollToBottom();
-      }
+    {
+        prompt: "Whatsapp",
+        iconSvg: `<svg class="mitAi-chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.5 8.5 0 017.6 4.7 8.38 8.38 0 01.9 3.8z"></path></svg>`
     },
-
-    /**
-     * Text formatting and markdown handling
-     */
-    Formatting: {
-      /**
-       * Format message content with markdown and links
-       * @param {HTMLElement} element - The element to format
-       */
-      formatMessageContent: function(element) {
-        if (!element || !element.dataset.rawText) return;
-
-        const rawText = element.dataset.rawText;
-
-        // Process the text with various Markdown features
-        let processedText = rawText;
-
-        // Process Markdown links
-        const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-        processedText = processedText.replace(markdownLinkRegex, (match, text, url) => {
-          // Check if it's an auth URL
-          if (url.includes('shopify.com/authentication') &&
-             (url.includes('oauth/authorize') || url.includes('authentication'))) {
-            // Store the auth URL in a global variable for later use - this avoids issues with onclick handlers
-            window.shopAuthUrl = url;
-            // Just return normal link that will be handled by the document click handler
-            return '<a href="#auth" class="shop-auth-trigger">' + text + '</a>';
-          }
-          // If it's a checkout link, replace the text
-          else if (url.includes('/cart') || url.includes('checkout')) {
-            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">click here to proceed to checkout</a>';
-          } else {
-            // For normal links, preserve the original text
-            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
-          }
-        });
-
-        // Convert text to HTML with proper list handling
-        processedText = this.convertMarkdownToHtml(processedText);
-
-        // Apply the formatted HTML
-        element.innerHTML = processedText;
-      },
-
-      /**
-       * Convert Markdown text to HTML with list support
-       * @param {string} text - Markdown text to convert
-       * @returns {string} HTML content
-       */
-      convertMarkdownToHtml: function(text) {
-        text = text.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
-        const lines = text.split('\n');
-        let currentList = null;
-        let listItems = [];
-        let htmlContent = '';
-        let startNumber = 1;
-
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const unorderedMatch = line.match(/^\s*([-*])\s+(.*)/);
-          const orderedMatch = line.match(/^\s*(\d+)[\.)]\s+(.*)/);
-
-          if (unorderedMatch) {
-            if (currentList !== 'ul') {
-              if (currentList === 'ol') {
-                htmlContent += `<ol start="${startNumber}">` + listItems.join('') + '</ol>';
-                listItems = [];
-              }
-              currentList = 'ul';
-            }
-            listItems.push('<li>' + unorderedMatch[2] + '</li>');
-          } else if (orderedMatch) {
-            if (currentList !== 'ol') {
-              if (currentList === 'ul') {
-                htmlContent += '<ul>' + listItems.join('') + '</ul>';
-                listItems = [];
-              }
-              currentList = 'ol';
-              startNumber = parseInt(orderedMatch[1], 10);
-            }
-            listItems.push('<li>' + orderedMatch[2] + '</li>');
-          } else {
-            if (currentList) {
-              htmlContent += currentList === 'ul'
-                ? '<ul>' + listItems.join('') + '</ul>'
-                : `<ol start="${startNumber}">` + listItems.join('') + '</ol>';
-              listItems = [];
-              currentList = null;
-            }
-
-            if (line.trim() === '') {
-              htmlContent += '<br>';
-            } else {
-              htmlContent += '<p>' + line + '</p>';
-            }
-          }
-        }
-
-        if (currentList) {
-          htmlContent += currentList === 'ul'
-            ? '<ul>' + listItems.join('') + '</ul>'
-            : `<ol start="${startNumber}">` + listItems.join('') + '</ol>';
-        }
-
-        htmlContent = htmlContent.replace(/<\/p><p>/g, '</p>\n<p>');
-        return htmlContent;
-      }
+    {
+        prompt: "Email",
+        iconSvg: `<svg class="mitAi-chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>`
     },
-
-    /**
-     * API communication and data handling
-     */
-    API: {
-      /**
-       * Stream a response from the API
-       * @param {string} userMessage - User's message text
-       * @param {string} conversationId - Conversation ID for context
-       * @param {HTMLElement} messagesContainer - The messages container
-       */
-      streamResponse: async function(userMessage, conversationId, messagesContainer) {
-        let currentMessageElement = null;
-
-        try {
-          const promptType = window.shopChatConfig?.promptType || "standardAssistant";
-          const requestBody = JSON.stringify({
-            message: userMessage,
-            conversation_id: conversationId,
-            prompt_type: promptType
-          });
-
-          const streamUrl = 'https://localhost:3458/chat';
-          const shopId = window.shopId;
-
-          const response = await fetch(streamUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'text/event-stream',
-              'X-Shopify-Shop-Id': shopId
-            },
-            body: requestBody
-          });
-
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          // Create initial message element
-          let messageElement = document.createElement('div');
-          messageElement.classList.add('shop-ai-message', 'assistant');
-          messageElement.textContent = '';
-          messageElement.dataset.rawText = '';
-          messagesContainer.appendChild(messageElement);
-          currentMessageElement = messageElement;
-
-          // Process the stream
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-                  this.handleStreamEvent(data, currentMessageElement, messagesContainer, userMessage,
-                    (newElement) => { currentMessageElement = newElement; });
-                } catch (e) {
-                  console.error('Error parsing event data:', e, line);
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error in streaming:', error);
-          ShopAIChat.UI.removeTypingIndicator();
-          ShopAIChat.Message.add("Sorry, I couldn't process your request. Please try again later.",
-            'assistant', messagesContainer);
-        }
-      },
-
-      /**
-       * Handle stream events from the API
-       * @param {Object} data - Event data
-       * @param {HTMLElement} currentMessageElement - Current message element being updated
-       * @param {HTMLElement} messagesContainer - The messages container
-       * @param {string} userMessage - The original user message
-       * @param {Function} updateCurrentElement - Callback to update the current element reference
-       */
-      handleStreamEvent: function(data, currentMessageElement, messagesContainer, userMessage, updateCurrentElement) {
-        switch (data.type) {
-          case 'id':
-            if (data.conversation_id) {
-              sessionStorage.setItem('shopAiConversationId', data.conversation_id);
-            }
-            break;
-
-          case 'chunk':
-            ShopAIChat.UI.removeTypingIndicator();
-            currentMessageElement.dataset.rawText += data.chunk;
-            currentMessageElement.textContent = currentMessageElement.dataset.rawText;
-            ShopAIChat.UI.scrollToBottom();
-            break;
-
-          case 'message_complete':
-            ShopAIChat.UI.removeTypingIndicator();
-            ShopAIChat.Formatting.formatMessageContent(currentMessageElement);
-            ShopAIChat.UI.scrollToBottom();
-            break;
-
-          case 'end_turn':
-            ShopAIChat.UI.removeTypingIndicator();
-            break;
-
-          case 'error':
-            console.error('Stream error:', data.error);
-            ShopAIChat.UI.removeTypingIndicator();
-            currentMessageElement.textContent = "Sorry, I couldn't process your request. Please try again later.";
-            break;
-
-          case 'rate_limit_exceeded':
-            console.error('Rate limit exceeded:', data.error);
-            ShopAIChat.UI.removeTypingIndicator();
-            currentMessageElement.textContent = "Sorry, our servers are currently busy. Please try again later.";
-            break;
-
-          case 'auth_required':
-            // Save the last user message for resuming after authentication
-            sessionStorage.setItem('shopAiLastMessage', userMessage || '');
-            break;
-
-          case 'product_results':
-            ShopAIChat.UI.displayProductResults(data.products);
-            break;
-
-          case 'tool_use':
-            if (data.tool_use_message) {
-              ShopAIChat.Message.addToolUse(data.tool_use_message, messagesContainer);
-            }
-            break;
-
-          case 'new_message':
-            ShopAIChat.Formatting.formatMessageContent(currentMessageElement);
-            ShopAIChat.UI.showTypingIndicator();
-
-            // Create new message element for the next response
-            const newMessageElement = document.createElement('div');
-            newMessageElement.classList.add('shop-ai-message', 'assistant');
-            newMessageElement.textContent = '';
-            newMessageElement.dataset.rawText = '';
-            messagesContainer.appendChild(newMessageElement);
-
-            // Update the current element reference
-            updateCurrentElement(newMessageElement);
-            break;
-
-          case 'content_block_complete':
-            ShopAIChat.UI.showTypingIndicator();
-            break;
-        }
-      },
-
-      /**
-       * Fetch chat history from the server
-       * @param {string} conversationId - Conversation ID
-       * @param {HTMLElement} messagesContainer - The messages container
-       */
-      fetchChatHistory: async function(conversationId, messagesContainer) {
-        try {
-          // Show a loading message
-          const loadingMessage = document.createElement('div');
-          loadingMessage.classList.add('shop-ai-message', 'assistant');
-          loadingMessage.textContent = "Loading conversation history...";
-          messagesContainer.appendChild(loadingMessage);
-
-          // Fetch history from the server
-          const historyUrl = `https://localhost:3458/chat?history=true&conversation_id=${encodeURIComponent(conversationId)}`;
-          console.log('Fetching history from:', historyUrl);
-
-          const response = await fetch(historyUrl, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            mode: 'cors'
-          });
-
-          if (!response.ok) {
-            console.error('History fetch failed:', response.status, response.statusText);
-            throw new Error('Failed to fetch chat history: ' + response.status);
-          }
-
-          const data = await response.json();
-
-          // Remove loading message
-          messagesContainer.removeChild(loadingMessage);
-
-          // No messages, show welcome message
-          if (!data.messages || data.messages.length === 0) {
-            const welcomeMessage = window.shopChatConfig?.welcomeMessage || "👋 Hi there! How can I help you today?";
-            ShopAIChat.Message.add(welcomeMessage, 'assistant', messagesContainer);
-            return;
-          }
-
-          // Add messages to the UI - filter out tool results
-          data.messages.forEach(message => {
-            try {
-              const messageContents = JSON.parse(message.content);
-              for (const contentBlock of messageContents) {
-                if (contentBlock.type === 'text') {
-                  ShopAIChat.Message.add(contentBlock.text, message.role, messagesContainer);
-                }
-              }
-            } catch (e) {
-              ShopAIChat.Message.add(message.content, message.role, messagesContainer);
-            }
-          });
-
-          // Scroll to bottom
-          ShopAIChat.UI.scrollToBottom();
-
-        } catch (error) {
-          console.error('Error fetching chat history:', error);
-
-          // Remove loading message if it exists
-          const loadingMessage = messagesContainer.querySelector('.shop-ai-message.assistant');
-          if (loadingMessage && loadingMessage.textContent === "Loading conversation history...") {
-            messagesContainer.removeChild(loadingMessage);
-          }
-
-          // Show error and welcome message
-          const welcomeMessage = window.shopChatConfig?.welcomeMessage || "👋 Hi there! How can I help you today?";
-          ShopAIChat.Message.add(welcomeMessage, 'assistant', messagesContainer);
-
-          // Clear the conversation ID since we couldn't fetch this conversation
-          sessionStorage.removeItem('shopAiConversationId');
-        }
-      }
-    },
-
-    /**
-     * Authentication-related functionality
-     */
-    Auth: {
-      /**
-       * Opens an authentication popup window
-       * @param {string|HTMLElement} authUrlOrElement - The auth URL or link element that was clicked
-       */
-      openAuthPopup: function(authUrlOrElement) {
-        let authUrl;
-        if (typeof authUrlOrElement === 'string') {
-          // If a string URL was passed directly
-          authUrl = authUrlOrElement;
-        } else {
-          // If an element was passed
-          authUrl = authUrlOrElement.getAttribute('data-auth-url');
-          if (!authUrl) {
-            console.error('No auth URL found in element');
-            return;
-          }
-        }
-
-        // Open the popup window centered in the screen
-        const width = 600;
-        const height = 700;
-        const left = (window.innerWidth - width) / 2 + window.screenX;
-        const top = (window.innerHeight - height) / 2 + window.screenY;
-
-        const popup = window.open(
-          authUrl,
-          'ShopifyAuth',
-          `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-        );
-
-        // Focus the popup window
-        if (popup) {
-          popup.focus();
-        } else {
-          // If popup was blocked, show a message
-          alert('Please allow popups for this site to authenticate with Shopify.');
-        }
-
-        // Start polling for token availability
-        const conversationId = sessionStorage.getItem('shopAiConversationId');
-        if (conversationId) {
-          const messagesContainer = document.querySelector('.shop-ai-chat-messages');
-
-          // Add a message to indicate authentication is in progress
-          ShopAIChat.Message.add("Authentication in progress. Please complete the process in the popup window.",
-            'assistant', messagesContainer);
-
-          this.startTokenPolling(conversationId, messagesContainer);
-        }
-      },
-
-      /**
-       * Start polling for token availability
-       * @param {string} conversationId - Conversation ID
-       * @param {HTMLElement} messagesContainer - The messages container
-       */
-      startTokenPolling: function(conversationId, messagesContainer) {
-        if (!conversationId) return;
-
-        console.log('Starting token polling for conversation:', conversationId);
-        const pollingId = 'polling_' + Date.now();
-        sessionStorage.setItem('shopAiTokenPollingId', pollingId);
-
-        let attemptCount = 0;
-        const maxAttempts = 30;
-
-        const poll = async () => {
-          if (sessionStorage.getItem('shopAiTokenPollingId') !== pollingId) {
-            console.log('Another polling session has started, stopping this one');
-            return;
-          }
-
-          if (attemptCount >= maxAttempts) {
-            console.log('Max polling attempts reached, stopping');
-            return;
-          }
-
-          attemptCount++;
-
-          try {
-            const tokenUrl = 'https://localhost:3458/auth/token-status?conversation_id=' +
-              encodeURIComponent(conversationId);
-            const response = await fetch(tokenUrl);
-
-            if (!response.ok) {
-              throw new Error('Token status check failed: ' + response.status);
-            }
-
-            const data = await response.json();
-
-            if (data.status === 'authorized') {
-              console.log('Token available, resuming conversation');
-              const message = sessionStorage.getItem('shopAiLastMessage');
-
-              if (message) {
-                sessionStorage.removeItem('shopAiLastMessage');
-                setTimeout(() => {
-                  ShopAIChat.Message.add("Authorization successful! I'm now continuing with your request.",
-                    'assistant', messagesContainer);
-                  ShopAIChat.API.streamResponse(message, conversationId, messagesContainer);
-                  ShopAIChat.UI.showTypingIndicator();
-                }, 500);
-              }
-
-              sessionStorage.removeItem('shopAiTokenPollingId');
-              return;
-            }
-
-            console.log('Token not available yet, polling again in 10s');
-            setTimeout(poll, 10000);
-          } catch (error) {
-            console.error('Error polling for token status:', error);
-            setTimeout(poll, 10000);
-          }
-        };
-
-        setTimeout(poll, 2000);
-      }
-    },
-
-    /**
-     * Product-related functionality
-     */
-    Product: {
-      /**
-       * Create a product card element
-       * @param {Object} product - Product data
-       * @returns {HTMLElement} Product card element
-       */
-      createCard: function(product) {
-        const card = document.createElement('div');
-        card.classList.add('shop-ai-product-card');
-
-        // Create image container
-        const imageContainer = document.createElement('div');
-        imageContainer.classList.add('shop-ai-product-image');
-
-        // Add product image or placeholder
-        const image = document.createElement('img');
-        image.src = product.image_url || 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-image_large.png';
-        image.alt = product.title;
-        image.onerror = function() {
-          // If image fails to load, use a fallback placeholder
-          this.src = 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-image_large.png';
-        };
-        imageContainer.appendChild(image);
-        card.appendChild(imageContainer);
-
-        // Add product info
-        const info = document.createElement('div');
-        info.classList.add('shop-ai-product-info');
-
-        // Add product title
-        const title = document.createElement('h3');
-        title.classList.add('shop-ai-product-title');
-        title.textContent = product.title;
-
-        // If product has a URL, make the title a link
-        if (product.url) {
-          const titleLink = document.createElement('a');
-          titleLink.href = product.url;
-          titleLink.target = '_blank';
-          titleLink.textContent = product.title;
-          title.textContent = '';
-          title.appendChild(titleLink);
-        }
-
-        info.appendChild(title);
-
-        // Add product price
-        const price = document.createElement('p');
-        price.classList.add('shop-ai-product-price');
-        price.textContent = product.price;
-        info.appendChild(price);
-
-        // Add add-to-cart button
-        const button = document.createElement('button');
-        button.classList.add('shop-ai-add-to-cart');
-        button.textContent = 'Add to Cart';
-        button.dataset.productId = product.id;
-
-        // Add click handler for the button
-        button.addEventListener('click', function() {
-          // Send message to add this product to cart
-          const input = document.querySelector('.shop-ai-chat-input input');
-          if (input) {
-            input.value = `Add ${product.title} to my cart`;
-            // Trigger a click on the send button
-            const sendButton = document.querySelector('.shop-ai-chat-send');
-            if (sendButton) {
-              sendButton.click();
-            }
-          }
-        });
-
-        info.appendChild(button);
-        card.appendChild(info);
-
-        return card;
-      }
-    },
-
-    /**
-     * Initialize the chat application
-     */
-    init: function() {
-      // Initialize UI
-      const container = document.querySelector('.shop-ai-chat-container');
-      if (!container) return;
-
-      this.UI.init(container);
-
-      // Check for existing conversation
-      const conversationId = sessionStorage.getItem('shopAiConversationId');
-
-      if (conversationId) {
-        // Fetch conversation history
-        this.API.fetchChatHistory(conversationId, this.UI.elements.messagesContainer);
-      } else {
-        // No previous conversation, show welcome message
-        const welcomeMessage = window.shopChatConfig?.welcomeMessage || "👋 Hi there! How can I help you today?";
-        this.Message.add(welcomeMessage, 'assistant', this.UI.elements.messagesContainer);
-      }
+    {
+        prompt: "Support",
+        iconSvg: `<svg class="mitAi-chat-history-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"></path><line x1="12" y1="12" x2="12" y2="16"></line><line x1="12" y1="8" x2="12" y2="8"></line></svg>`
     }
-  };
+];
 
-  // Initialize the application when DOM is ready
-  document.addEventListener('DOMContentLoaded', function() {
-    ShopAIChat.init();
-  });
-})();
+const articles = [
+    {
+        title: "How long will it take to receive my order?",
+        author: "Jesse",
+        updated: "over a year ago",
+        content: `
+            <p>Thank you for your order! Delivery times vary based on your location and the shipping method selected during checkout. Generally, orders are processed within <strong>1-2 business days</strong>.</p>
+            <h2>Domestic Shipping (within your country)</h2>
+            <ul>
+                <li><strong>Standard Shipping:</strong> 5-7 business days</li>
+                <li><strong>Express Shipping:</strong> 2-3 business days</li>
+            </ul>
+            <h2>International Shipping</h2>
+            <p>International orders typically take <strong>7-21 business days</strong> depending on customs clearance in the destination country. Please note that customs duties and taxes may apply upon arrival.</p>
+            <p>You will receive a shipping confirmation email with a tracking number once your order has been dispatched.</p>
+            <img src="https://placehold.co/300x200/FFB347/FFFFFF?text=Delivery+Info" alt="Delivery Information">
+            <p>If you have any further questions, please don't hesitate to contact our support team.</p>
+        `
+    },
+    {
+        title: "How to track my order?",
+        author: "Jesse",
+        updated: "6 months ago",
+        content: `
+            <p>Tracking your order is easy! Once your order has shipped, you will receive an email with your tracking number and a link to the carrier's website.</p>
+            <h2>Steps to Track Your Order:</h2>
+            <ol>
+                <li>Check your email for a shipping confirmation from us.</li>
+                <li>Locate the tracking number in the email.</li>
+                <li>Click on the provided tracking link, or visit the carrier's website and enter your tracking number manually.</li>
+            </ol>
+            <p>If you haven't received a tracking number within 2 business days of your purchase, please contact our customer support for assistance.</p>
+            <img src="https://placehold.co/300x200/FFD180/333333?text=Order+Tracking" alt="Order Tracking Steps">
+        `
+    },
+    {
+        title: "Do you ship internationally?",
+        author: "Jesse",
+        updated: "2 months ago",
+        content: `
+            <p>Yes, we proudly offer international shipping to most countries worldwide!</p>
+            <p>Please note that international shipping times and costs vary depending on the destination. Any customs duties, taxes, or import fees are the responsibility of the recipient and are not included in the item price or shipping cost.</p>
+            <p>During checkout, you will be able to see the available shipping options and estimated costs for your country.</p>
+        `
+    },
+    {
+        title: "I never got my order, what to do?",
+        author: "Jesse",
+        updated: "1 month ago",
+        content: `
+            <p>We're sorry to hear your order hasn't arrived! Please take the following steps:</p>
+            <ol>
+                <li><strong>Check your tracking information:</strong> Ensure there are no delivery exceptions or delays noted.</li>
+                <li><strong>Verify your shipping address:</strong> Double-check that the address provided was correct.</li>
+                <li><strong>Look around your delivery location:</strong> Sometimes packages are left in a secure location, with a neighbor, or at a local post office.</li>
+                <li><strong>Wait a few more days:</strong> Occasionally, packages can be marked as delivered prematurely.</li>
+            </ol>
+            <p>If your order still hasn't arrived after these steps, please contact our support team with your order number, and we'll be happy to investigate further.</p>
+        `
+    },
+    {
+        title: "What is your return policy?",
+        author: "Jesse",
+        updated: "3 weeks ago",
+        content: `
+            <p>We want you to be completely satisfied with your purchase! Our return policy allows for returns within <strong>30 days of delivery</strong> for most items.</p>
+            <p>Items must be unused, in their original packaging, and in the same condition that you received them. Some exclusions may apply (e.g., final sale items, personalized products).</p>
+            <h2>How to initiate a return:</h2>
+            <ol>
+                <li>Contact our customer support team to request a Return Merchandise Authorization (RMA) number.</li>
+                <li>Package your item securely with the RMA number clearly marked.</li>
+                <li>Ship the item back to us using a trackable shipping method.</li>
+            </ol>
+            <p>Once your return is received and inspected, we will process your refund or exchange. Please allow 5-10 business days for the refund to appear on your statement.</p>
+        `
+    },
+    {
+        title: "Can I exchange an item?",
+        author: "Jesse",
+        updated: "2 weeks ago",
+        content: `
+            <p>Yes, we offer exchanges for items of equal value within <strong>30 days of delivery</strong>, subject to availability.</p>
+            <p>To be eligible for an exchange, your item must be unused, in its original packaging, and in the same condition that you received it.</p>
+            <h2>How to exchange an item:</h2>
+            <ol>
+                <li>Contact our customer support team to check availability of the desired item and receive exchange instructions.</li>
+                <li>Ship your original item back to us.</li>
+                <li>Once received and inspected, we will ship out your new item.</li>
+            </ol>
+            <p>If there's a price difference, we will guide you through the process of either paying the difference or receiving a partial refund.</p>
+        `
+    }
+];
+
+function addMessage(text, sender, targetContainer) {
+    const messageContainer = document.createElement('div');
+    if (targetContainer === newChatMessagesContainer) {
+        messageContainer.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} items-start gap-2`;
+
+        if (sender === 'ai') {
+            const profileImageDiv = document.createElement('div');
+            profileImageDiv.className = 'mitAi-chat-profile-image w-6 h-6 flex-shrink-0';
+            profileImageDiv.style.backgroundImage = "url('https://placehold.co/100x100/FFB347/FFFFFF?text=AI')";
+            messageContainer.appendChild(profileImageDiv);
+        }
+
+        const messageBubble = document.createElement('div');
+        messageBubble.className = `mitAi-message-bubble ${sender === 'user' ? 'mitAi-user-message' : 'mitAi-ai-message'}`;
+
+        if (text === 'thinking_loader') {
+            messageBubble.innerHTML = `
+                <div class="mitAi-loader-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+        } else {
+            messageBubble.innerHTML = `<p>${text}</p>`;
+        }
+
+        messageContainer.appendChild(messageBubble);
+
+        if (sender === 'user') {
+            const profileImageDiv = document.createElement('div');
+            profileImageDiv.className = 'mitAi-chat-profile-image w-6 h-6 flex-shrink-0';
+            profileImageDiv.style.backgroundImage = "url('https://placehold.co/100x100/4A90E2/FFFFFF?text=Me')";
+            messageContainer.appendChild(profileImageDiv);
+        }
+
+    } else {
+        messageContainer.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+        const messageBubble = document.createElement('div');
+        messageBubble.className = `mitAi-message-bubble ${sender === 'user' ? 'mitAi-user-message' : 'mitAi-ai-message'}`;
+
+        if (text === 'thinking_loader') {
+            messageBubble.innerHTML = `
+                <div class="mitAi-loader-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            `;
+        } else {
+            messageBubble.innerHTML = `<p>${text}</p>`;
+        }
+        messageContainer.appendChild(messageBubble);
+    }
+
+    targetContainer.appendChild(messageContainer);
+    targetContainer.scrollTop = targetContainer.scrollHeight;
+}
+
+function handleSendMessage(messageText) {
+    if (messageText.trim() === '') return;
+
+    addMessage(messageText, 'user', initialChatArea);
+    chatHistorySection.style.display = 'none';
+    searchSection.style.display = 'none';
+    newChatButton.style.display = 'none';
+
+    addMessage('thinking_loader', 'ai', initialChatArea);
+    setTimeout(() => {
+        const thinkingBubble = initialChatArea.lastChild;
+        if (thinkingBubble && thinkingBubble.querySelector('.mitAi-loader-dots')) {
+            thinkingBubble.remove();
+        }
+        addMessage('This is a simulated AI response based on your input.', 'ai', initialChatArea);
+    }, 1000);
+}
+
+function handleChatHistoryButtonClick(e) {
+    const promptText = e.currentTarget.dataset.prompt;
+    if (promptText === 'Email') {
+        const email = 'support@example.com';
+        const subject = encodeURIComponent('Support Request from Meetanshi');
+        const body = encodeURIComponent('Hello, I need help with...');
+        window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+        return;
+    } else if (promptText === 'Whatsapp') {
+        const phone = '919999999999';
+        const message = encodeURIComponent('Hello, I need help with my order.');
+        window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+        return;
+    } else if (promptText === 'Order Tracking') {
+        showNewChatScreen();
+        setTimeout(() => {
+            addMessage('Order Tracking', 'user', newChatMessagesContainer);
+            switchToOrderTrackingInput();
+        }, 100);
+        return;
+    }
+    handleSendMessage(promptText);
+}
+
+function handleArticleItemClick(e) {
+    const articleText = e.currentTarget.querySelector('.mitAi-article-text').textContent;
+    showArticleViewScreen(articleText);
+}
+
+function showArticleViewScreen(articleTitle) {
+    chatbotContainer.classList.add('mitAi-expanded');
+    screensWrapper.classList.remove('mitAi-slide-left');
+    screensWrapper.classList.add('mitAi-slide-far-left');
+    newChatButton.style.display = 'none';
+
+    const articleData = articles.find(article => article.title === articleTitle);
+    if (!articleData) {
+        articleViewScreen.innerHTML = `<p class="text-red-500">Article not found.</p>`;
+        return;
+    }
+
+    articleViewScreen.innerHTML = `
+        <div class="mitAi-article-header">
+            <button class="mitAi-back-button" id="mitAi-back-to-initial-screen">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            <button class="mitAi-expand-button">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <polyline points="9 21 3 21 3 15"></polyline>
+                    <line x1="21" y1="3" x2="14" y2="10"></line>
+                    <line x1="3" y1="21" x2="10" y2="14"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="mitAi-article-content">
+            <h1>${articleData.title}</h1>
+            <div class="mitAi-article-meta">
+                <img src="https://placehold.co/100x100/6B7280/FFFFFF?text=J" alt="Author">
+                <span>Written by ${articleData.author}</span>
+                <span>Updated ${articleData.updated}</span>
+            </div>
+            ${articleData.content}
+        </div>
+    `;
+    document.getElementById('mitAi-back-to-initial-screen').addEventListener('click', resetChatAreaContent);
+}
+
+function handleSearchInput(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    document.querySelectorAll('#mitAi-article-list .mitAi-article-item').forEach(item => {
+        const text = item.querySelector('.mitAi-article-text').textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function resetChatAreaContent() {
+    chatbotContainer.classList.remove('mitAi-expanded');
+    screensWrapper.classList.remove('mitAi-slide-left', 'mitAi-slide-far-left');
+    newChatButton.style.display = 'flex';
+    isOrderTrackingMode = false;
+    switchToNormalChatInput();
+    attachEventListeners();
+}
+
+function showNewChatScreen() {
+    chatbotContainer.classList.remove('mitAi-expanded');
+    screensWrapper.classList.remove('mitAi-slide-far-left');
+    screensWrapper.classList.add('mitAi-slide-left');
+    newChatButton.style.display = 'none';
+    newChatMessagesContainer.innerHTML = '';
+    isOrderTrackingMode = false;
+
+    const existingHeader = newChatMessagesContainer.querySelector('.mitAi-chat-top-bar');
+    if (existingHeader) existingHeader.remove();
+
+    newChatMessagesContainer.insertAdjacentHTML('afterbegin', getChatHeaderHTML());
+
+    let predefinedDiv = newChatScreen.querySelector('.mitAi-predefined-options');
+    if (!predefinedDiv) {
+        const predefinedOptions = [
+            { icon: "🛒", text: "Track my order" },
+            { icon: "🚚", text: "How long does delivery take?" },
+            { icon: "🔁", text: "Return policy" }
+        ];
+
+        predefinedDiv = document.createElement('div');
+        predefinedDiv.className = 'mitAi-predefined-options flex gap-2 mb-3 px-4';
+
+        predefinedOptions.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'flex items-center gap-2 bg-white text-[#333] font-medium rounded-full shadow px-4 py-2 text-sm hover:bg-[#F8F9FA] transition';
+            btn.innerHTML = `<span>${opt.icon}</span> <span>${opt.text}</span>`;
+            btn.onclick = () => {
+                const currentInput = document.getElementById('mitAi-new-chat-input');
+                if (currentInput) {
+                    currentInput.value = opt.text;
+                    currentInput.focus();
+                    autoResizeTextarea.call(currentInput);
+                }
+            };
+            predefinedDiv.appendChild(btn);
+        });
+
+        newChatScreen.insertBefore(predefinedDiv, chatInputArea);
+    }
+
+    document.getElementById('mitAi-back-to-home').addEventListener('click', resetChatAreaContent);
+
+    addMessage('Hello! How can I help you today?', 'ai', newChatMessagesContainer);
+    switchToNormalChatInput();
+}
+
+function getChatHeaderHTML() {
+    return `
+        <div class="mitAi-chat-top-bar">
+            <button class="mitAi-back-button" id="mitAi-back-to-home">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            <div class="mitAi-chat-profile-info">
+                <div class="mitAi-chat-profile-image"></div>
+                <div class="mitAi-chat-profile-details">
+                    <span class="mitAi-chat-profile-name">ThinkAI Support</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function switchToOrderTrackingInput() {
+    isOrderTrackingMode = true;
+    chatInputArea.innerHTML = `
+        <div class="mitAi-order-tracking-input-group">
+            <div class="mitAi-input-row">
+                <input type="text" id="mitAi-order-number-input" placeholder="Order number" class="flex-1 bg-[#4F4F4F] p-3 rounded-full text-white text-sm outline-none border-none">
+            </div>
+            <div class="mitAi-input-row">
+                <input type="email" id="mitAi-email-input" placeholder="Email address" class="flex-1 bg-[#4F4F4F] p-3 rounded-full text-white text-sm outline-none border-none">
+                <button id="mitAi-close-order-tracking" class="mitAi-close-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <button id="mitAi-send-new-message">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    attachEventListeners();
+    addMessage('Please provide your order number and email address to track your order.', 'ai', newChatMessagesContainer);
+}
+
+function switchToNormalChatInput() {
+    isOrderTrackingMode = false;
+    chatInputArea.innerHTML = `
+        <textarea placeholder="Type your message..." id="mitAi-new-chat-input" rows="1" class="flex-1 bg-transparent border-none outline-none text-white text-sm py-2 px-2 resize-none min-h-10 leading-6 rounded-full max-h-50 overflow-y-auto scrollbar-width-none"></textarea>
+        <button id="mitAi-send-new-message">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        </button>
+    `;
+    attachEventListeners();
+}
+
+function handleSendNewMessage() {
+    const predefinedDiv = newChatScreen.querySelector('.mitAi-predefined-options');
+    if (predefinedDiv) {
+        predefinedDiv.remove();
+    }
+
+    if (isOrderTrackingMode) {
+        const orderNumberInput = document.getElementById('mitAi-order-number-input');
+        const emailInput = document.getElementById('mitAi-email-input');
+
+        const orderNumber = orderNumberInput ? orderNumberInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim() : '';
+
+        if (orderNumber === '' || email === '') {
+            addMessage('Please provide both order number and email address.', 'ai', newChatMessagesContainer);
+            return;
+        }
+
+        const userMessage = `Order Tracking Request: Order No. ${orderNumber}, Email: ${email}`;
+        addMessage(userMessage, 'user', newChatMessagesContainer);
+
+        switchToNormalChatInput();
+
+        addMessage('thinking_loader', 'ai', newChatMessagesContainer);
+        setTimeout(() => {
+            const thinkingBubble = newChatMessagesContainer.lastChild;
+            if (thinkingBubble && thinkingBubble.querySelector('.mitAi-loader-dots')) {
+                thinkingBubble.remove();
+            }
+            addMessage(`Thank you! I'm now looking up order ${orderNumber} associated with ${email}. Please wait a moment.`, 'ai', newChatMessagesContainer);
+        }, 1500);
+
+    } else {
+        const newChatInput = document.getElementById('mitAi-new-chat-input');
+        const messageText = newChatInput.value.trim();
+        if (messageText === '') return;
+
+        addMessage(messageText, 'user', newChatMessagesContainer);
+        newChatInput.value = '';
+        newChatInput.style.height = 'auto';
+        newChatInput.style.borderRadius = '9999px';
+
+        if (messageText.toLowerCase().includes('order tracking')) {
+            switchToOrderTrackingInput();
+            return;
+        }
+
+        addMessage('thinking_loader', 'ai', newChatMessagesContainer);
+        setTimeout(() => {
+            const thinkingBubble = newChatMessagesContainer.lastChild;
+            if (thinkingBubble && thinkingBubble.querySelector('.mitAi-loader-dots')) {
+                thinkingBubble.remove();
+            }
+            addMessage('I received your message! How else can I assist you?', 'ai', newChatMessagesContainer);
+        }, 1500);
+    }
+}
+
+function autoResizeTextarea() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 70) + 'px';
+}
+
+function attachEventListeners() {
+    document.querySelectorAll('#mitAi-chat-history-grid .mitAi-chat-history-button').forEach(button => {
+        button.removeEventListener('click', handleChatHistoryButtonClick);
+        button.addEventListener('click', handleChatHistoryButtonClick);
+    });
+
+    document.querySelectorAll('#mitAi-article-list .mitAi-article-item').forEach(item => {
+        item.removeEventListener('click', handleArticleItemClick);
+        item.addEventListener('click', handleArticleItemClick);
+    });
+
+    const currentSearchInput = document.getElementById('mitAi-search-input');
+    if (currentSearchInput) {
+        currentSearchInput.removeEventListener('input', handleSearchInput);
+        currentSearchInput.addEventListener('input', handleSearchInput);
+    }
+
+    newChatButton.removeEventListener('click', showNewChatScreen);
+    newChatButton.addEventListener('click', showNewChatScreen);
+
+    const existingBackToHomeButton = document.getElementById('mitAi-back-to-home');
+    if (existingBackToHomeButton) {
+        existingBackToHomeButton.removeEventListener('click', resetChatAreaContent);
+        existingBackToHomeButton.addEventListener('click', resetChatAreaContent);
+    }
+
+    const sendNewMessageButton = document.getElementById('mitAi-send-new-message');
+    if (sendNewMessageButton) {
+        sendNewMessageButton.removeEventListener('click', handleSendNewMessage);
+        sendNewMessageButton.addEventListener('click', handleSendNewMessage);
+    }
+
+    const newChatInput = document.getElementById('mitAi-new-chat-input');
+    if (newChatInput) {
+        newChatInput.removeEventListener('input', autoResizeTextarea);
+        newChatInput.addEventListener('input', autoResizeTextarea);
+
+        newChatInput.removeEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendNewMessage();
+            }
+        });
+        newChatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendNewMessage();
+            }
+        });
+    }
+
+    const closeOrderTrackingButton = document.getElementById('mitAi-close-order-tracking');
+    if (closeOrderTrackingButton) {
+        closeOrderTrackingButton.removeEventListener('click', switchToNormalChatInput);
+        closeOrderTrackingButton.addEventListener('click', switchToNormalChatInput);
+    }
+}
+
+chatToggleButton.addEventListener('click', () => {
+    if (chatbotContainer.classList.contains('mitAi-hidden')) {
+        chatbotContainer.classList.remove('mitAi-hidden');
+        chatbotContainer.classList.add('mitAi-visible');
+        resetChatAreaContent();
+    } else {
+        chatbotContainer.classList.remove('mitAi-visible');
+        chatbotContainer.classList.add('mitAi-hidden');
+    }
+});
+
+attachEventListeners();
+chatbotContainer.classList.add('mitAi-hidden');

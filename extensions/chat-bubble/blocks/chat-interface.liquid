@@ -1,36 +1,287 @@
 {{ 'chat.css' | asset_url | stylesheet_tag }}
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<script src="https://cdn.tailwindcss.com" defer></script>
+<div class="mitAi-chatbot-container" id="mitAi-chatbot-container">
+  <!-- Wrapper for screens to enable sliding animation -->
+  <div class="mitAi-screens-wrapper" id="mitAi-screens-wrapper">
+    <!-- Initial Chat Area -->
+    <div class="mitAi-chat-area mitAi-initial-screen" id="mitAi-initial-chat-area">
+      <!-- Welcome Message -->
+      <div class="text-center mt-4">
+        <div class="mitAi-welcome-circle">
+          <!-- The image from the URL is now the background -->
+        </div>
+        <div style="display:flex;justify-content:center;">
+          <h2 class="text-4xl font-bold mt-4 text-[#333] text-center">Good evening, Meetanshi</h2>
+        </div>
+        <p class="text-gray-600 mt-2  text-2xl">Can I help you with anything?</p>
+      </div>
 
-<div class="shop-ai-chat-container">
-  <div class="shop-ai-chat-bubble" style="background-color: {{ block.settings.chat_bubble_color }}">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-    </svg>
+      <!-- New Chat History Section -->
+      <div class="mitAi-chat-history-section">
+        <div class="mitAi-chat-history-header">
+          <span class="mitAi-chat-history-title">Actions</span>
+        </div>
+        <div class="mitAi-chat-history-grid" id="mitAi-chat-history-grid">
+          <button class="mitAi-chat-history-button" data-prompt="Order Tracking">
+            <div class="mitAi-chat-history-icon-circle">
+              <svg
+                class="mitAi-chat-history-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M17 18a2 2 0 002-2V7.5L14.5 3H6a2 2 0 00-2 2v13a2 2 0 002 2h11z"></path>
+                <polyline points="14 3 14 8 19 8"></polyline>
+                <path d="M10 12L7 9 4 12"></path>
+                <path d="M7 9v11"></path>
+              </svg>
+            </div>
+            <span class="mitAi-chat-history-text">Track Order</span>
+          </button>
+          <button class="mitAi-chat-history-button" data-prompt="Whatsapp">
+            <div class="mitAi-chat-history-icon-circle">
+              <svg
+                class="mitAi-chat-history-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.5 8.5 0 017.6 4.7 8.38 8.38 0 01.9 3.8z"></path>
+              </svg>
+            </div>
+            <span class="mitAi-chat-history-text">Whatsapp</span>
+          </button>
+          <button class="mitAi-chat-history-button" data-prompt="Email">
+            <div class="mitAi-chat-history-icon-circle">
+              <svg
+                class="mitAi-chat-history-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+            </div>
+            <span class="mitAi-chat-history-text">Email</span>
+          </button>
+          <button class="mitAi-chat-history-button" data-prompt="Support">
+            <div class="mitAi-chat-history-icon-circle">
+              <svg
+                class="mitAi-chat-history-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"></path>
+                <line x1="12" y1="12" x2="12" y2="16"></line>
+                <line x1="12" y1="8" x2="12" y2="8"></line>
+              </svg>
+            </div>
+            <span class="mitAi-chat-history-text">Support</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search for Help Section -->
+      <div class="mitAi-search-section">
+        <div class="mitAi-chat-history-header">
+          <span class="mitAi-chat-history-title">Articles</span>
+        </div>
+        <div class="mitAi-search-input-wrapper">
+          <svg
+            class="mitAi-search-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" placeholder="Search for help" id="mitAi-search-input">
+        </div>
+        <div class="mitAi-article-list" id="mitAi-article-list">
+          <div class="mitAi-article-item">
+            <span class="mitAi-article-text">How long will it take to receive my order?</span>
+            <svg
+              class="mitAi-article-arrow-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+          <div class="mitAi-article-item">
+            <span class="mitAi-article-text">How to track my order?</span>
+            <svg
+              class="mitAi-article-arrow-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+          <div class="mitAi-article-item">
+            <span class="mitAi-article-text">Do you ship internationally?</span>
+            <svg
+              class="mitAi-article-arrow-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+          <div class="mitAi-article-item">
+            <span class="mitAi-article-text">I never got my order, what to do?</span>
+            <svg
+              class="mitAi-article-arrow-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+          <div class="mitAi-article-item">
+            <span class="mitAi-article-text">What is your return policy?</span>
+            <svg
+              class="mitAi-article-arrow-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+          <div class="mitAi-article-item">
+            <span class="mitAi-article-text">Can I exchange an item?</span>
+            <svg
+              class="mitAi-article-arrow-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Chat Screen -->
+    <div class="mitAi-chat-screen mitAi-new-chat-screen" id="mitAi-new-chat-screen">
+      <div class="mitAi-new-chat-messages-container" id="mitAi-new-chat-messages-container">
+        <!-- Chat messages will appear here -->
+      </div>
+
+      <div class="mitAi-chat-input-area" id="mitAi-chat-input-area">
+        <textarea placeholder="Type your message..." id="mitAi-new-chat-input" rows="1"></textarea>
+        <button id="mitAi-send-new-message">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Article View Screen -->
+    <div class="mitAi-article-view-screen" id="mitAi-article-view-screen">
+      <!-- Article content will be loaded here -->
+    </div>
   </div>
 
-  <div class="shop-ai-chat-window">
-    <div class="shop-ai-chat-header">
-      <div>{{ 'chat.title' | t }}</div>
-      <button class="shop-ai-chat-close">✕</button>
+  <!-- New Chat Button -->
+  <button class="mitAi-new-chat-button" id="mitAi-new-chat-button">
+    <span class="mitAi-new-chat-text">Chat now</span>
+    <div class="mitAi-new-chat-icon-circle">
+      <svg
+        class="mitAi-new-chat-arrow-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <polyline points="12 5 19 12 12 19"></polyline>
+      </svg>
     </div>
-
-    <div class="shop-ai-chat-messages">
-      <!-- Messages will be added here by JavaScript -->
-    </div>
-
-    <div class="shop-ai-chat-input">
-      <input type="text" placeholder="{{ 'chat.inputPlaceholder' | t }}">
-      <button class="shop-ai-chat-send">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"></line>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
-      </button>
-    </div>
-  </div>
+  </button>
 </div>
 
-<script src="{{ 'chat.js' | asset_url }}" defer></script>
+<!-- Chat Toggle Button -->
+<button id="mitAi-chat-toggle-button" class="mitAi-chat-toggle-button">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+  </svg>
+</button>
+<script defer src="{{ 'chat.js' | asset_url }}?v={{ 'now' | date: '%s' }}"></script>
 <script>
   window.shopChatConfig = {
     promptType: {{ block.settings.system_prompt | json }},
