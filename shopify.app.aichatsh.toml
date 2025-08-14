@@ -3,7 +3,7 @@
 client_id = "f2aaf6994453e3085d3233fa7706d17b"
 name = "aichatSh"
 handle = "aichatsh"
-application_url = "https://females-export-external-lake.trycloudflare.com"
+application_url = "https://judicial-roles-upgrades-having.trycloudflare.com"
 embedded = true
 
 [build]
@@ -17,7 +17,7 @@ api_version = "2025-07"
 scopes = "customer_read_customers,customer_read_orders,customer_read_store_credit_account_transactions,customer_read_store_credit_accounts,unauthenticated_read_product_listings"
 
 [auth]
-redirect_urls = ["https://females-export-external-lake.trycloudflare.com/auth/callback", "https://females-export-external-lake.trycloudflare.com/auth/shopify/callback", "https://females-export-external-lake.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://judicial-roles-upgrades-having.trycloudflare.com/auth/callback", "https://judicial-roles-upgrades-having.trycloudflare.com/auth/shopify/callback", "https://judicial-roles-upgrades-having.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
